@@ -21,12 +21,12 @@ create table test (
 );`
 
 func initdata() {
-	data1 := map[string]interface{}{
+	data1 := M{
 		"name":       "archever",
 		"now":        "2018-09-13 12:01:00",
 		"createtime": "2018-09-13 12:11:00",
 	}
-	data2 := map[string]interface{}{
+	data2 := M{
 		"name":       "archever2",
 		"now":        "2018-09-13 12:02:00",
 		"createtime": "2018-09-13 12:12:00",

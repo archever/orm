@@ -10,8 +10,15 @@
 ## usage
 
 ### init
+install
+
+```bash
+go get "github.com/archever/orm/orm"
+```
 
 ```golang
+import "github.com/archever/orm/orm"
+
 var err error
 db, err = sql.Open("mysql", "root:zxcvbnm@tcp(127.0.0.1:3306)/demo")
 if err != nil {
@@ -47,10 +54,9 @@ _, _, err = o.Exec(table).Do()
 
 ```golang
 // insert via map
-dataM := map[string]interface{}{
-	"name": "arhever"
-}
-_, _, err = o.Table("test").Insert(dataM).Do()
+_, _, err = o.Table("test").Insert(orm.M{
+	"name": "arhever",
+}).Do()
 
 // insert via struct
 type testT struct {
@@ -125,8 +131,10 @@ o.Table("test").Select().One(&dest)
 
 ### custom struct serialize
 there are tow interfaces to handler serialize, similar to encoding/json
+
 * (*)UnMarshaler
 * Marshaler
+
 if the interface implemented, orm will use the func to handler sql data to struct and struct to sql data
 
 ```golang
@@ -165,9 +173,13 @@ o.Table("mytable").Select().One(&dest)
 
 ## developer
 
-init a dev mysql	
+### init a dev mysql	
+
 `docker-compose up -d`
 
-test
+### test
+
 `go test`
+
 * init test data in main_test.go
+* use `.Sql()` to check the generated sql and args

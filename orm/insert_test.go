@@ -9,7 +9,7 @@ import (
 )
 
 func TestInsertOneMap(t *testing.T) {
-	data := map[string]interface{}{
+	data := M{
 		"id":   100,
 		"name": "insert100",
 	}
@@ -20,11 +20,11 @@ func TestInsertOneMap(t *testing.T) {
 }
 
 func TestInsertManyMap(t *testing.T) {
-	data1 := map[string]interface{}{
+	data1 := M{
 		"id":   110,
 		"name": "insert110",
 	}
-	data2 := map[string]interface{}{
+	data2 := M{
 		"id":   111,
 		"name": "insert111",
 	}
@@ -60,7 +60,7 @@ func TestInsertManyStruct(t *testing.T) {
 	assert.Equal(t, int64(2), count)
 }
 func TestReplaceOneMap(t *testing.T) {
-	data := map[string]interface{}{
+	data := M{
 		"id":   200,
 		"name": "insert200",
 	}
@@ -71,11 +71,11 @@ func TestReplaceOneMap(t *testing.T) {
 }
 
 func TestReplaceManyMap(t *testing.T) {
-	data1 := map[string]interface{}{
+	data1 := M{
 		"id":   210,
 		"name": "insert210",
 	}
-	data2 := map[string]interface{}{
+	data2 := M{
 		"id":   211,
 		"name": "insert211",
 	}

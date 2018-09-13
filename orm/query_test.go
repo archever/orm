@@ -71,7 +71,7 @@ func TestSelectRowsStrcutOneInterface(t *testing.T) {
 }
 
 func TestSelectRowsMap(t *testing.T) {
-	dest := []map[string]interface{}{}
+	dest := []M{}
 	err := o.Table("test").Select().Get(&dest)
 	log.Printf("res: %v", dest)
 	assert.NoError(t, err)
@@ -80,7 +80,7 @@ func TestSelectRowsMap(t *testing.T) {
 }
 
 func TestSelectRowsMapNil(t *testing.T) {
-	var dest []map[string]interface{}
+	var dest []M
 	err := o.Table("test").Select().Get(&dest)
 	log.Printf("res: %v", dest)
 	assert.NoError(t, err)
@@ -89,7 +89,7 @@ func TestSelectRowsMapNil(t *testing.T) {
 }
 
 func TestSelectRowsMapOne(t *testing.T) {
-	dest := map[string]interface{}{}
+	dest := M{}
 	err := o.Table("test").Select().One(&dest)
 	log.Printf("res: %v", dest)
 	assert.NoError(t, err)
@@ -98,7 +98,7 @@ func TestSelectRowsMapOne(t *testing.T) {
 }
 
 func TestSelectRowsMapOneNil(t *testing.T) {
-	var dest map[string]interface{}
+	var dest M
 	err := o.Table("test").Select().One(&dest)
 	log.Printf("res: %v", dest)
 	assert.NoError(t, err)
