@@ -18,3 +18,5 @@ func Count(field ...string) string {
 	return fmt.Sprintf("count(%s)", fieldV)
 
 }
+
+type M map[string]interface{}

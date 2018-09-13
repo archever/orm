@@ -76,8 +76,8 @@ _, _, err = o.Table("test").Insert(dataSlice...).Do()
 ### Update
 
 ```golang
-o.Table("test").Update({"name": "archever"}).Where(orm.Equel("id", 10)).Do()
-o.Table("test").Update({"name": "archever"}).WhereS("id=?", 10).Do()
+o.Table("test").Update(orm.M{"name": "archever"}).Where(orm.Equel("id", 10)).Do()
+o.Table("test").Update(orm.M{"name": "archever"}).WhereS("id=?", 10).Do()
 ```
 
 ### Delete
