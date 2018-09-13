@@ -98,7 +98,7 @@ func And(f ...*Filter) *Filter {
 func Or(left, right *Filter) *Filter {
 	whereS := []string{}
 	args := []interface{}{}
-	for _, i := range []*Filter{
+	for _, i := range [...]*Filter{
 		left, right,
 	} {
 		whereS = append(whereS, i.Where)

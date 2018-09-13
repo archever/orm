@@ -16,7 +16,6 @@ type destT struct {
 }
 
 func TestSelectRowsStrcut(t *testing.T) {
-
 	dest := []destT{}
 	err := o.Table("test").Select().Get(&dest)
 	log.Printf("res: %v", dest)
