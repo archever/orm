@@ -39,19 +39,20 @@ func New(db *sql.DB) OrmI {
 	}
 }
 
-func (o *Orm) reset() {
+// Reset the orm instance
+func (o *Orm) Reset() {
 	o.table = ""
 }
 
 func (o *Orm) errAction(err error) ActionI {
-	defer o.reset()
+	defer o.Reset()
 	return &Action{
 		err: err,
 	}
 }
 
 func (o *Orm) passAction(sql string, args ...interface{}) ActionI {
-	defer o.reset()
+	defer o.Reset()
 	return &Action{
 		db:   o.db,
 		sql:  sql,

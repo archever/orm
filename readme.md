@@ -17,7 +17,10 @@ go get "github.com/archever/orm"
 ```
 
 ```golang
-import "github.com/archever/orm"
+import (
+	"github.com/archever/orm"
+	_ "github.com/go-sql-driver/mysql"
+)
 
 var err error
 db, err = sql.Open("mysql", "root:zxcvbnm@tcp(127.0.0.1:3306)/demo")
