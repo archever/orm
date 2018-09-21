@@ -133,6 +133,21 @@ dests := map[string]int64{}
 o.Table("test").Select().One(&dest)
 ```
 
+### transaction
+you should just New a Tx instance and reused it
+
+```golang
+tx := orm.NewTx(db)
+err := tx.Begin()
+# ... tx.Table ...
+err := tx.Commit()
+
+# another transact
+tx.Begin()
+# ...
+tx.RollBack()
+```
+
 ### custom struct serialize
 there are tow interfaces to handler serialize, similar to encoding/json
 
