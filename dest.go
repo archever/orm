@@ -22,7 +22,6 @@ type Marshaler interface {
 }
 
 func scanQueryRows(dest interface{}, rows *sql.Rows) error {
-	// json.Unmarshal
 	var err error
 	rv := reflect.ValueOf(dest)
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
@@ -52,7 +51,7 @@ func scanQueryRows(dest interface{}, rows *sql.Rows) error {
 			return errors.New("should not be method interface")
 		}
 	case reflect.Array:
-		// ToArray
+		// TODO: handler Array type
 	case reflect.Slice:
 		// ToSlice
 		rv, err = ToSlice(reses, rv)

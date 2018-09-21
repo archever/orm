@@ -6,6 +6,7 @@
 * [ ] support dest array type
 * [ ] support mysql array/json type
 * [ ] support pg
+* [x] TX supprt
 
 ## usage
 

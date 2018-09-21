@@ -18,7 +18,7 @@ services:
         - ./_data/mysql:/var/lib/mysql
         # - ./mysql.conf:/etc/mysql/mysql.conf.d/mysqld.cnf
     ports:
-        - 127.0.0.1:3306:3306
+        - 127.0.0.1:33061:3306
     environment:
       MYSQL_ROOT_PASSWORD: zxcvbnm
       MYSQL_DATABASE: demo

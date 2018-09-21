@@ -11,8 +11,9 @@ import (
 )
 
 // Action sql executor implement
-type Action struct {
+type ActionTx struct {
 	db       *sql.DB
+	tx       *sql.Tx
 	sql      string
 	args     []interface{}
 	limit    int64
@@ -24,9 +25,9 @@ type Action struct {
 	err      error
 }
 
-var _ ActionI = &Action{}
+var _ ActionTxI = &ActionTx{}
 
-func (a *Action) finish() error {
+func (a *ActionTx) finish() error {
 	if a.err != nil {
 		return a.err
 	}
@@ -53,7 +54,7 @@ func (a *Action) finish() error {
 }
 
 // Sql return the sql info for testing
-func (a *Action) Sql() (string, []interface{}, error) {
+func (a *ActionTx) Sql() (string, []interface{}, error) {
 	err := a.finish()
 	if err != nil {
 		return "", nil, err
@@ -62,12 +63,12 @@ func (a *Action) Sql() (string, []interface{}, error) {
 }
 
 // Do executing sql
-func (a *Action) Do() (int64, int64, error) {
+func (a *ActionTx) Do() (int64, int64, error) {
 	err := a.finish()
 	if err != nil {
 		return 0, 0, err
 	}
-	res, err := a.db.Exec(a.sql, a.args...)
+	res, err := a.tx.Exec(a.sql, a.args...)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -83,12 +84,12 @@ func (a *Action) Do() (int64, int64, error) {
 }
 
 // Get executing sql and fetch the data and restore to dest
-func (a *Action) Get(dest interface{}) error {
+func (a *ActionTx) Get(dest interface{}) error {
 	err := a.finish()
 	if err != nil {
 		return err
 	}
-	rows, err := a.db.Query(a.sql, a.args...)
+	rows, err := a.tx.Query(a.sql, a.args...)
 	if err != nil {
 		return err
 	}
@@ -97,13 +98,13 @@ func (a *Action) Get(dest interface{}) error {
 }
 
 // One executing sql fetch one data and restore to dest
-func (a *Action) One(dest interface{}) error {
+func (a *ActionTx) One(dest interface{}) error {
 	err := a.finish()
 	if err != nil {
 		return err
 	}
 	a.limit = 1
-	rows, err := a.db.Query(a.sql, a.args...)
+	rows, err := a.tx.Query(a.sql, a.args...)
 	if err != nil {
 		return err
 	}
@@ -112,7 +113,7 @@ func (a *Action) One(dest interface{}) error {
 }
 
 // Where generate where condition
-func (a *Action) Where(f ...*Filter) ActionI {
+func (a *ActionTx) Where(f ...*Filter) ActionTxI {
 	if len(f) == 0 {
 		a.err = errors.New("where can not be empty")
 		return a
@@ -123,7 +124,7 @@ func (a *Action) Where(f ...*Filter) ActionI {
 }
 
 // OrderBy set sql order by
-func (a *Action) OrderBy(o ...string) ActionI {
+func (a *ActionTx) OrderBy(o ...string) ActionTxI {
 	if len(o) == 0 {
 		a.err = errors.New("order by empty")
 		return a
@@ -133,7 +134,7 @@ func (a *Action) OrderBy(o ...string) ActionI {
 }
 
 // GroupBy set sql group by
-func (a *Action) GroupBy(o ...string) ActionI {
+func (a *ActionTx) GroupBy(o ...string) ActionTxI {
 	if len(o) == 0 {
 		a.err = errors.New("group by empty")
 		return a
@@ -143,19 +144,19 @@ func (a *Action) GroupBy(o ...string) ActionI {
 }
 
 // Limit set sql limit
-func (a *Action) Limit(l int64) ActionI {
+func (a *ActionTx) Limit(l int64) ActionTxI {
 	a.limit = l
 	return a
 }
 
 // Offset set sql offset
-func (a *Action) Offset(o int64) ActionI {
+func (a *ActionTx) Offset(o int64) ActionTxI {
 	a.offset = o
 	return a
 }
 
 // Page set sql limit and offset
-func (a *Action) Page(page, psize int64) ActionI {
+func (a *ActionTx) Page(page, psize int64) ActionTxI {
 	if page < 1 {
 		page = 1
 	}
