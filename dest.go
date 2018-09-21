@@ -128,35 +128,31 @@ func indirect(v reflect.Value) reflect.Value {
 		haveAddr = true
 		v = v.Addr()
 	}
-	for {
-		// Load value from interface, but only if the result will be
-		// usefully addressable.
-		if v.Kind() == reflect.Interface && !v.IsNil() {
-			e := v.Elem()
-			if e.Kind() == reflect.Ptr && !e.IsNil() && e.Elem().Kind() == reflect.Ptr {
-				haveAddr = false
-				v = e
-				continue
-			}
-		}
-
-		if v.Kind() != reflect.Ptr {
-			break
-		}
-
-		if v.Elem().Kind() != reflect.Ptr && v.CanSet() {
-			break
-		}
-		if v.IsNil() {
-			v.Set(reflect.New(v.Type().Elem()))
-		}
-
-		if haveAddr {
-			v = v0
+	if v.Kind() == reflect.Interface && !v.IsNil() {
+		e := v.Elem()
+		if e.Kind() == reflect.Ptr && !e.IsNil() && e.Elem().Kind() == reflect.Ptr {
 			haveAddr = false
-		} else {
-			v = v.Elem()
+			v = e
 		}
+	}
+
+	if v.Kind() != reflect.Ptr {
+		return v
+	}
+
+	if v.Elem().Kind() != reflect.Ptr && v.CanSet() {
+		return v
+	}
+
+	if v.IsNil() {
+		v.Set(reflect.New(v.Type().Elem()))
+	}
+
+	if haveAddr {
+		v = v0
+		haveAddr = false
+	} else {
+		v = v.Elem()
 	}
 	return v
 }

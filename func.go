@@ -2,6 +2,8 @@ package orm
 
 import "fmt"
 
+type M map[string]interface{}
+
 func Sum(field string) string {
 	return fmt.Sprintf("sum(%s)", field)
 }
@@ -18,5 +20,3 @@ func Count(field ...string) string {
 	return fmt.Sprintf("count(%s)", fieldV)
 
 }
-
-type M map[string]interface{}

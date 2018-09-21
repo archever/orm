@@ -6,7 +6,6 @@ import (
 	"log"
 	"testing"
 
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,7 +15,6 @@ type destT struct {
 }
 
 func TestSelectRowsStrcut(t *testing.T) {
-
 	dest := []destT{}
 	err := o.Table("test").Select().Get(&dest)
 	log.Printf("res: %v", dest)
