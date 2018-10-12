@@ -4,6 +4,7 @@ package orm
 
 import (
 	"database/sql"
+	"reflect"
 )
 
 // Orm entrance
@@ -21,23 +22,25 @@ func New(db *sql.DB) OrmI {
 	}
 }
 
-func toTabledI(i interface{}) TabledI {
-	return i.(TabledI)
-}
-
-// Reset the orm instance
-func (o *Orm) Reset() {
+func (o *Orm) reset() {
 	o.table = ""
 }
 
+func (o *Orm) toTabledI() TabledI {
+	defer o.reset()
+	n := New(o.db).(*Orm)
+	n.table = o.table
+	return reflect.ValueOf(n).Interface().(TabledI)
+}
+
 func (o *Orm) errAction(err error) ActionI {
-	defer o.Reset()
+	defer o.reset()
 	return &Action{
 		err: err,
 	}
 }
 func (o *Orm) passAction(sql string, args ...interface{}) ActionI {
-	defer o.Reset()
+	defer o.reset()
 	return &Action{
 		db:   o.db,
 		sql:  sql,
@@ -47,7 +50,7 @@ func (o *Orm) passAction(sql string, args ...interface{}) ActionI {
 
 func (o *Orm) Table(t string) TabledI {
 	o.table = t
-	return toTabledI(o)
+	return o.toTabledI()
 }
 
 func (o *Orm) Exec(sql string, arg ...interface{}) ActionI {
