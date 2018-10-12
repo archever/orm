@@ -43,25 +43,27 @@ type ActionI interface {
 	Get(dest interface{}) error
 	One(dest interface{}) error
 	Do() (int64, int64, error)
-	Where(f ...*Filter) ActionI
+	Filter(f ...*FilterItem) ActionI
+	Where(string, ...interface{}) ActionI
 	OrderBy(o ...string) ActionI
 	GroupBy(o ...string) ActionI
 	Limit(l int64) ActionI
 	Offset(o int64) ActionI
 	Page(page, psize int64) ActionI
-	Sql() (string, []interface{}, error)
+	SQL() (string, []interface{}, error)
 }
 
-// ActionI sql executor interface
+// ActionTxI sql executor interface
 type ActionTxI interface {
 	Get(dest interface{}) error
 	One(dest interface{}) error
 	Do() (int64, int64, error)
-	Where(f ...*Filter) ActionTxI
+	Filter(f ...*FilterItem) ActionTxI
+	Where(string, ...interface{}) ActionTxI
 	OrderBy(o ...string) ActionTxI
 	GroupBy(o ...string) ActionTxI
 	Limit(l int64) ActionTxI
 	Offset(o int64) ActionTxI
 	Page(page, psize int64) ActionTxI
-	Sql() (string, []interface{}, error)
+	SQL() (string, []interface{}, error)
 }

@@ -86,14 +86,14 @@ _, _, err = o.Table("test").Insert(dataSlice...).Do()
 ### Update
 
 ```golang
-o.Table("test").Update(orm.M{"name": "archever"}).Where(orm.Equel("id", 10)).Do()
-o.Table("test").Update(orm.M{"name": "archever"}).WhereS("id=?", 10).Do()
+o.Table("test").Update(orm.M{"name": "archever"}).Filter(orm.Equel("id", 10)).Do()
+o.Table("test").Update(orm.M{"name": "archever"}).Where("id=?", 10).Do()
 ```
 
 ### Delete
 
 ```golang
-o.Table("test").Delete().Where(orm.Equel("id", 10)).Do()
+o.Table("test").Delete().Fiter(orm.Equel("id", 10)).Do()
 ```
 
 ### select
@@ -201,4 +201,4 @@ o.Table("mytable").Select().One(&dest)
 `go test`
 
 * init test data in main_test.go
-* use `.Sql()` to check the generated sql and args
+* use `.SQL()` to check the generated sql and args

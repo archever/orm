@@ -21,7 +21,7 @@ type ActionTx struct {
 	groupby  []string
 	offset   int64
 	isOffset bool
-	filter   *Filter
+	filter   *FilterItem
 	err      error
 }
 
@@ -53,8 +53,8 @@ func (a *ActionTx) finish() error {
 	return nil
 }
 
-// Sql return the sql info for testing
-func (a *ActionTx) Sql() (string, []interface{}, error) {
+// SQL return the sql info for testing
+func (a *ActionTx) SQL() (string, []interface{}, error) {
 	err := a.finish()
 	if err != nil {
 		return "", nil, err
@@ -112,13 +112,20 @@ func (a *ActionTx) One(dest interface{}) error {
 	return err
 }
 
-// Where generate where condition
-func (a *ActionTx) Where(f ...*Filter) ActionTxI {
+// Filter generate where condition
+func (a *ActionTx) Filter(f ...*FilterItem) ActionTxI {
 	if len(f) == 0 {
 		a.err = errors.New("where can not be empty")
 		return a
 	}
 	filter := And(f...)
+	a.filter = filter
+	return a
+}
+
+// Where generate where condition
+func (a *ActionTx) Where(cond string, arg ...interface{}) ActionTxI {
+	filter := S(cond, arg...)
 	a.filter = filter
 	return a
 }

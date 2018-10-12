@@ -41,7 +41,7 @@ func TestMarshal(t *testing.T) {
 		300, "test300", MyTime{time.Date(2018, time.September, 13, 12, 0, 0, 0, time.Now().Location())},
 		time.Date(2018, time.September, 13, 12, 1, 0, 0, time.Now().Location()),
 	}
-	sql, args, err := o.Table("test").Insert(data).Sql()
+	sql, args, err := o.Table("test").Insert(data).SQL()
 	assert.NoError(t, err)
 	// the generate field order seems random
 	assert.Contains(t, sql, "id")

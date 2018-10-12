@@ -43,7 +43,7 @@ func initdata() {
 
 func TestMain(m *testing.M) {
 	var err error
-	db, err = sql.Open("mysql", "root:zxcvbnm@tcp(127.0.0.1:33061)/demo")
+	db, err = sql.Open("mysql", "root@tcp(127.0.0.1:3306)/unittest")
 	if err != nil {
 		log.Panic(err)
 	}

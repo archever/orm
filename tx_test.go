@@ -16,7 +16,7 @@ func TestTxCommit(t *testing.T) {
 	tx.Commit()
 
 	var dest map[string]interface{}
-	err = o.Table("test").Select().Where(S("name=?", "tx_test1")).One(&dest)
+	err = o.Table("test").Select().Where("name=?", "tx_test1").One(&dest)
 	assert.NoError(t, err)
 	assert.Equal(t, "tx_test1", dest["name"])
 }
@@ -30,7 +30,7 @@ func TestTxRollBack(t *testing.T) {
 	tx.RollBack()
 
 	var dest map[string]interface{}
-	err = o.Table("test").Select().Where(S("name=?", "tx_test2")).One(&dest)
+	err = o.Table("test").Select().Where("name=?", "tx_test2").One(&dest)
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(dest))
 }

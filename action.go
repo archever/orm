@@ -20,7 +20,7 @@ type Action struct {
 	groupby  []string
 	offset   int64
 	isOffset bool
-	filter   *Filter
+	filter   *FilterItem
 	err      error
 }
 
@@ -52,8 +52,8 @@ func (a *Action) finish() error {
 	return nil
 }
 
-// Sql return the sql info for testing
-func (a *Action) Sql() (string, []interface{}, error) {
+// SQL return the sql info for testing
+func (a *Action) SQL() (string, []interface{}, error) {
 	err := a.finish()
 	if err != nil {
 		return "", nil, err
@@ -111,13 +111,20 @@ func (a *Action) One(dest interface{}) error {
 	return err
 }
 
-// Where generate where condition
-func (a *Action) Where(f ...*Filter) ActionI {
+// Filter generate where condition
+func (a *Action) Filter(f ...*FilterItem) ActionI {
 	if len(f) == 0 {
 		a.err = errors.New("where can not be empty")
 		return a
 	}
 	filter := And(f...)
+	a.filter = filter
+	return a
+}
+
+// Where generate where condition
+func (a *Action) Where(cond string, arg ...interface{}) ActionI {
+	filter := S(cond, arg...)
 	a.filter = filter
 	return a
 }
