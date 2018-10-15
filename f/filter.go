@@ -1,6 +1,4 @@
-// filter generate the where condition sql
-
-package orm
+package f
 
 import (
 	"fmt"
@@ -8,7 +6,6 @@ import (
 	"strings"
 )
 
-// FilterItem build where condition
 type FilterItem struct {
 	Where string
 	Args  []interface{}
@@ -23,7 +20,7 @@ func filter(o, field string, arg interface{}) *FilterItem {
 
 func S(cond string, arg ...interface{}) *FilterItem {
 	return &FilterItem{
-		Where: cond,
+		Where: fmt.Sprintf("%s", cond),
 		Args:  arg,
 	}
 }
@@ -83,6 +80,9 @@ func NotLike(field string, arg interface{}) *FilterItem {
 }
 
 func And(f ...*FilterItem) *FilterItem {
+	if len(f) == 1 {
+		return f[0]
+	}
 	whereS := []string{}
 	args := []interface{}{}
 	for _, i := range f {
@@ -90,7 +90,7 @@ func And(f ...*FilterItem) *FilterItem {
 		args = append(args, i.Args...)
 	}
 	return &FilterItem{
-		Where: strings.Join(whereS, " and "),
+		Where: fmt.Sprintf("(%s)", strings.Join(whereS, " and ")),
 		Args:  args,
 	}
 }
@@ -105,7 +105,7 @@ func Or(left, right *FilterItem) *FilterItem {
 		args = append(args, i.Args...)
 	}
 	return &FilterItem{
-		Where: strings.Join(whereS, " or "),
+		Where: fmt.Sprintf("(%s)", strings.Join(whereS, " or ")),
 		Args:  args,
 	}
 }

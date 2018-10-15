@@ -1,3 +1,0 @@
-package orm
-
-// General errors

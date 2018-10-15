@@ -1,17 +1,15 @@
-// action is a sql generater after orm, usally to execut sql
-
 package orm
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"strings"
+
+	"github.com/archever/ormv2/f"
 )
 
-// Action sql executor implement
-type ActionTx struct {
+type stmt struct {
 	db       *sql.DB
 	tx       *sql.Tx
 	sql      string
@@ -21,19 +19,25 @@ type ActionTx struct {
 	groupby  []string
 	offset   int64
 	isOffset bool
-	filter   *FilterItem
+	filters  []*f.FilterItem
 	err      error
 }
 
-var _ ActionTxI = &ActionTx{}
+func (a *stmt) isTx() bool {
+	if a.tx == nil {
+		return false
+	}
+	return true
+}
 
-func (a *ActionTx) finish() error {
+func (a *stmt) finish() error {
 	if a.err != nil {
 		return a.err
 	}
-	if a.filter != nil {
-		a.sql += " where " + a.filter.Where
-		a.args = append(a.args, a.filter.Args...)
+	if len(a.filters) != 0 {
+		filter := f.And(a.filters...)
+		a.sql += " where " + filter.Where
+		a.args = append(a.args, filter.Args...)
 	}
 	if len(a.groupby) > 0 {
 		a.sql += fmt.Sprintf(" group by %s", strings.Join(a.groupby, ", "))
@@ -54,7 +58,7 @@ func (a *ActionTx) finish() error {
 }
 
 // SQL return the sql info for testing
-func (a *ActionTx) SQL() (string, []interface{}, error) {
+func (a *stmt) SQL() (string, []interface{}, error) {
 	err := a.finish()
 	if err != nil {
 		return "", nil, err
@@ -63,12 +67,17 @@ func (a *ActionTx) SQL() (string, []interface{}, error) {
 }
 
 // Do executing sql
-func (a *ActionTx) Do() (int64, int64, error) {
-	err := a.finish()
+func (a *stmt) Do() (rowID, rowCount int64, err error) {
+	err = a.finish()
 	if err != nil {
 		return 0, 0, err
 	}
-	res, err := a.tx.Exec(a.sql, a.args...)
+	var res sql.Result
+	if a.isTx() {
+		res, err = a.tx.Exec(a.sql, a.args...)
+	} else {
+		res, err = a.db.Exec(a.sql, a.args...)
+	}
 	if err != nil {
 		return 0, 0, err
 	}
@@ -84,86 +93,87 @@ func (a *ActionTx) Do() (int64, int64, error) {
 }
 
 // Get executing sql and fetch the data and restore to dest
-func (a *ActionTx) Get(dest interface{}) error {
+func (a *stmt) Get(dest interface{}) error {
 	err := a.finish()
 	if err != nil {
 		return err
 	}
-	rows, err := a.tx.Query(a.sql, a.args...)
+	var rows *sql.Rows
+	if a.isTx() {
+		rows, err = a.tx.Query(a.sql, a.args...)
+	} else {
+		rows, err = a.db.Query(a.sql, a.args...)
+	}
 	if err != nil {
 		return err
 	}
-	err = scanQueryRows(dest, rows)
+	err = ScanQueryRows(dest, rows)
 	return err
 }
 
 // One executing sql fetch one data and restore to dest
-func (a *ActionTx) One(dest interface{}) error {
+func (a *stmt) One(dest interface{}) error {
+	a.limit = 1
 	err := a.finish()
 	if err != nil {
 		return err
 	}
-	a.limit = 1
-	rows, err := a.tx.Query(a.sql, a.args...)
+	var rows *sql.Rows
+	if a.isTx() {
+		rows, err = a.tx.Query(a.sql, a.args...)
+	} else {
+		rows, err = a.db.Query(a.sql, a.args...)
+	}
 	if err != nil {
 		return err
 	}
-	err = scanQueryOne(dest, rows)
+	err = ScanQueryOne(dest, rows)
 	return err
 }
 
 // Filter generate where condition
-func (a *ActionTx) Filter(f ...*FilterItem) ActionTxI {
-	if len(f) == 0 {
-		a.err = errors.New("where can not be empty")
-		return a
-	}
-	filter := And(f...)
-	a.filter = filter
+func (a *stmt) Filter(filters ...*f.FilterItem) *stmt {
+	filter := f.And(filters...)
+	a.filters = append(a.filters, filter)
 	return a
 }
 
 // Where generate where condition
-func (a *ActionTx) Where(cond string, arg ...interface{}) ActionTxI {
-	filter := S(cond, arg...)
-	a.filter = filter
+func (a *stmt) Where(cond string, arg ...interface{}) *stmt {
+	filter := f.S(cond, arg...)
+	a.filters = append(a.filters, filter)
 	return a
 }
 
 // OrderBy set sql order by
-func (a *ActionTx) OrderBy(o ...string) ActionTxI {
-	if len(o) == 0 {
-		a.err = errors.New("order by empty")
-		return a
+func (a *stmt) OrderBy(field string, reverse bool) *stmt {
+	if reverse {
+		field += " desc"
 	}
-	a.orderby = append(a.orderby, strings.Join(o, " "))
+	a.orderby = append(a.orderby, field)
 	return a
 }
 
 // GroupBy set sql group by
-func (a *ActionTx) GroupBy(o ...string) ActionTxI {
-	if len(o) == 0 {
-		a.err = errors.New("group by empty")
-		return a
-	}
+func (a *stmt) GroupBy(o ...string) *stmt {
 	a.groupby = append(a.groupby, strings.Join(o, " "))
 	return a
 }
 
 // Limit set sql limit
-func (a *ActionTx) Limit(l int64) ActionTxI {
+func (a *stmt) Limit(l int64) *stmt {
 	a.limit = l
 	return a
 }
 
 // Offset set sql offset
-func (a *ActionTx) Offset(o int64) ActionTxI {
+func (a *stmt) Offset(o int64) *stmt {
 	a.offset = o
 	return a
 }
 
 // Page set sql limit and offset
-func (a *ActionTx) Page(page, psize int64) ActionTxI {
+func (a *stmt) Page(page, psize int64) *stmt {
 	if page < 1 {
 		page = 1
 	}

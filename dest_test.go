@@ -1,5 +1,3 @@
-// test dest
-
 package orm
 
 import (
@@ -9,69 +7,70 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type destT struct {
-	ID   int64
-	Name string
-}
-
 func TestSelectRowsStrcut(t *testing.T) {
 	dest := []destT{}
-	err := o.Table("test").Select().Get(&dest)
-	log.Printf("res: %v", dest)
+	err := s.Table("test").Select().Get(&dest)
+	log.Printf("res: %#v", dest)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), dest[0].ID)
 	assert.Equal(t, "archever", dest[0].Name)
+	assert.IsType(t, Male, dest[0].UserType)
 }
 
 func TestSelectRowsStrcutPointer(t *testing.T) {
 	dest := []*destT{}
-	err := o.Table("test").Select().Get(&dest)
-	log.Printf("res: %v", dest)
+	err := s.Table("test").Select().Get(&dest)
+	log.Printf("res: %#v", dest)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), dest[0].ID)
 	assert.Equal(t, "archever", dest[0].Name)
+	assert.IsType(t, Male, dest[0].UserType)
 }
 
 func TestSelectRowsStrcutInterface(t *testing.T) {
 	var dest []destT
-	err := o.Table("test").Select().Get(&dest)
-	log.Printf("res: %v", dest)
+	err := s.Table("test").Select().Get(&dest)
+	log.Printf("res: %#v", dest)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), dest[0].ID)
 	assert.Equal(t, "archever", dest[0].Name)
+	assert.IsType(t, Male, dest[0].UserType)
 }
 
 func TestSelectRowsStrcutInterfacePointer(t *testing.T) {
 	var dest []*destT
-	err := o.Table("test").Select().Get(&dest)
-	log.Printf("res: %v", dest)
+	err := s.Table("test").Select().Get(&dest)
+	log.Printf("res: %#v", dest)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), dest[0].ID)
 	assert.Equal(t, "archever", dest[0].Name)
+	assert.IsType(t, Male, dest[0].UserType)
 }
 
 func TestSelectRowsStrcutOne(t *testing.T) {
 	dest := destT{}
-	err := o.Table("test").Select().One(&dest)
-	log.Printf("res: %v", dest)
+	err := s.Table("test").Select().One(&dest)
+	log.Printf("res: %#v", dest)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), dest.ID)
 	assert.Equal(t, "archever", dest.Name)
+	assert.IsType(t, Male, dest.UserType)
 }
 
 func TestSelectRowsStrcutOneInterface(t *testing.T) {
 	var dest destT
-	err := o.Table("test").Select().One(&dest)
-	log.Printf("res: %v", dest)
+	err := s.Table("test").Select().One(&dest)
+	log.Printf("res: %#v", dest)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), dest.ID)
 	assert.Equal(t, "archever", dest.Name)
+	assert.IsType(t, Male, dest.UserType)
 }
 
 func TestSelectRowsMap(t *testing.T) {
 	dest := []M{}
-	err := o.Table("test").Select().Get(&dest)
-	log.Printf("res: %v", dest)
+	err := s.Table("test").Select().Get(&dest)
+	log.Printf("res: %#v", dest)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), dest[0]["id"])
 	assert.Equal(t, "archever", dest[0]["name"])
@@ -79,8 +78,8 @@ func TestSelectRowsMap(t *testing.T) {
 
 func TestSelectRowsMapNil(t *testing.T) {
 	var dest []M
-	err := o.Table("test").Select().Get(&dest)
-	log.Printf("res: %v", dest)
+	err := s.Table("test").Select().Get(&dest)
+	log.Printf("res: %#v", dest)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), dest[0]["id"])
 	assert.Equal(t, "archever", dest[0]["name"])
@@ -88,8 +87,8 @@ func TestSelectRowsMapNil(t *testing.T) {
 
 func TestSelectRowsMapOne(t *testing.T) {
 	dest := M{}
-	err := o.Table("test").Select().One(&dest)
-	log.Printf("res: %v", dest)
+	err := s.Table("test").Select().One(&dest)
+	log.Printf("res: %#v", dest)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), dest["id"])
 	assert.Equal(t, "archever", dest["name"])
@@ -97,8 +96,8 @@ func TestSelectRowsMapOne(t *testing.T) {
 
 func TestSelectRowsMapOneNil(t *testing.T) {
 	var dest M
-	err := o.Table("test").Select().One(&dest)
-	log.Printf("res: %v", dest)
+	err := s.Table("test").Select().One(&dest)
+	log.Printf("res: %#v", dest)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), dest["id"])
 	assert.Equal(t, "archever", dest["name"])
@@ -106,8 +105,8 @@ func TestSelectRowsMapOneNil(t *testing.T) {
 
 func TestSelectRowsInterface(t *testing.T) {
 	var dest interface{}
-	err := o.Table("test").Select().Get(&dest)
-	log.Printf("res: %v", dest)
+	err := s.Table("test").Select().Get(&dest)
+	log.Printf("res: %#v", dest)
 	destv, ok := dest.([]map[string]interface{})
 	assert.NoError(t, err)
 	assert.Equal(t, true, ok)
@@ -117,8 +116,8 @@ func TestSelectRowsInterface(t *testing.T) {
 
 func TestSelectRowsOneInterface(t *testing.T) {
 	var dest interface{}
-	err := o.Table("test").Select().One(&dest)
-	log.Printf("res: %v", dest)
+	err := s.Table("test").Select().One(&dest)
+	log.Printf("res: %#v", dest)
 	destv, ok := dest.(map[string]interface{})
 	assert.NoError(t, err)
 	assert.Equal(t, true, ok)

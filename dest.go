@@ -21,7 +21,7 @@ type Marshaler interface {
 	MarshalSQL() (string, error)
 }
 
-func scanQueryRows(dest interface{}, rows *sql.Rows) error {
+func ScanQueryRows(dest interface{}, rows *sql.Rows) error {
 	var err error
 	rv := reflect.ValueOf(dest)
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
@@ -51,9 +51,12 @@ func scanQueryRows(dest interface{}, rows *sql.Rows) error {
 			return errors.New("should not be method interface")
 		}
 	case reflect.Array:
-		// TODO: handler Array type
+		rv, err = ToArray(reses, rv)
+		if err != nil {
+			return err
+		}
+		reflect.ValueOf(dest).Elem().Set(rv)
 	case reflect.Slice:
-		// ToSlice
 		rv, err = ToSlice(reses, rv)
 		if err != nil {
 			return err
@@ -65,7 +68,7 @@ func scanQueryRows(dest interface{}, rows *sql.Rows) error {
 	return nil
 }
 
-func scanQueryOne(dest interface{}, rows *sql.Rows) error {
+func ScanQueryOne(dest interface{}, rows *sql.Rows) error {
 	var err error
 	rv := reflect.ValueOf(dest)
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
@@ -107,18 +110,23 @@ func scanQueryOne(dest interface{}, rows *sql.Rows) error {
 	return err
 }
 
-func getFieldName(field reflect.StructField) string {
+func getFieldName(field reflect.StructField) (string, bool) {
 	fieldName, ok := field.Tag.Lookup("column")
+	isOmitempty := false
 	if ok {
-		return fieldName
+		fieldNames := strings.Split(fieldName, ",")
+		for _, f := range fieldNames {
+			if f == "omitempty" {
+				isOmitempty = true
+				continue
+			}
+			fieldName = f
+		}
 	}
-	fieldName, ok = field.Tag.Lookup("json")
-	if ok {
-		fieldName = strings.Split(fieldName, ",")[0]
-		return fieldName
+	if fieldName == "" {
+		fieldName = strings.ToLower(field.Name)
 	}
-	fieldName = strings.ToLower(field.Name)
-	return fieldName
+	return fieldName, isOmitempty
 }
 
 func indirect(v reflect.Value) reflect.Value {
@@ -199,6 +207,62 @@ func ToSlice(reses []map[string]*ScanRow, rv reflect.Value) (reflect.Value, erro
 	return rv, nil
 }
 
+// ToArray rows to slice
+func ToArray(reses []map[string]*ScanRow, rv reflect.Value) (reflect.Value, error) {
+	rt := rv.Type().Elem()
+	isPtr := false
+	if rt.Kind() == reflect.Ptr {
+		rt = rv.Type().Elem().Elem()
+		isPtr = true
+	}
+	length := rv.Len()
+	if length == 0 {
+		return rv, nil
+	}
+	switch rt.Kind() {
+	case reflect.Map:
+		index := 0
+		for _, res := range reses {
+			if index >= length {
+				break
+			}
+			v := reflect.MakeMap(rt)
+			err := ToMap(res, v)
+			if err != nil {
+				return rv, err
+			}
+			if isPtr {
+				rv.Index(index).Set(v.Addr())
+			} else {
+				rv.Index(index).Set(v)
+			}
+			index++
+		}
+	case reflect.Struct:
+		index := 0
+		for _, res := range reses {
+			if index >= length {
+				break
+			}
+			v := reflect.New(rt)
+			v = v.Elem()
+			err := ToStruct(res, v)
+			if err != nil {
+				return rv, err
+			}
+			if isPtr {
+				rv.Index(index).Set(v.Addr())
+			} else {
+				rv.Index(index).Set(v)
+			}
+			index++
+		}
+	default:
+		return rv, errors.New("invalid type while parsing to slice item")
+	}
+	return rv, nil
+}
+
 // ToMap rows to map
 func ToMap(row map[string]*ScanRow, rv reflect.Value) error {
 	// assert key string type
@@ -249,9 +313,19 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 		// struct 值
 		ele := rv.Field(i)
 		// 字段名
-		fieldName := getFieldName(rv.Type().Field(i))
+		fieldName, _ := getFieldName(rv.Type().Field(i))
 		// 读取字段值
 		if data, ok := row[fieldName]; ok {
+			// handler UnMarshalSQL
+			if m, ok := ele.Addr().Interface().(UnMarshaler); ok {
+				err := m.UnMarshalSQL(data.Value)
+				if err != nil {
+					return err
+				}
+				ele.Set(reflect.ValueOf(m).Elem())
+				continue
+			}
+
 			switch ele.Type().Kind() {
 			case reflect.String:
 				v := data.ToString()
@@ -263,18 +337,11 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 					return err
 				}
 				ele.Set(reflect.ValueOf(v))
-			// check strcut type
-			case reflect.Struct:
-				// handler UnMarshalSQL
-				if m, ok := ele.Addr().Interface().(UnMarshaler); ok {
-					err := m.UnMarshalSQL(data.Value)
-					if err != nil {
-						return err
-					}
-					ele.Set(reflect.ValueOf(m).Elem())
-					continue
+			case reflect.Ptr, reflect.Struct:
+				if ele.Type().Kind() == reflect.Ptr {
+					ele.Set(reflect.New(ele.Type().Elem()))
+					ele = ele.Elem()
 				}
-				// handler orther type
 				switch ele.Interface().(type) {
 				case time.Time:
 					v, err := data.ToTime()
@@ -285,6 +352,8 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 				default:
 					return fmt.Errorf("unknown type %T", ele.Interface())
 				}
+			default:
+				return fmt.Errorf("unknown type %T", ele.Interface())
 			}
 		}
 	}
@@ -292,8 +361,7 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 }
 
 // IToMap interface to map
-func IToMap(item interface{}) (map[string]interface{}, error) {
-	v := reflect.ValueOf(item)
+func IToMap(v reflect.Value) (map[string]interface{}, error) {
 	ret := map[string]interface{}{}
 	if v.Type().Kind() == reflect.Ptr {
 		v = v.Elem()
@@ -302,10 +370,17 @@ func IToMap(item interface{}) (map[string]interface{}, error) {
 	case reflect.Map:
 		keys := v.MapKeys()
 		for _, k := range keys {
-			ret[k.String()] = v.MapIndex(k).Interface()
+			data := v.MapIndex(k).Interface()
+			if m, ok := data.(Marshaler); ok {
+				var err error
+				data, err = m.MarshalSQL()
+				if err != nil {
+					return ret, err
+				}
+			}
+			ret[k.String()] = data
 		}
 	case reflect.Struct:
-		// check seriale interface
 		for i := 0; i < v.NumField(); i++ {
 			field := v.Type().Field(i)
 			data := v.Field(i).Interface()
@@ -316,10 +391,32 @@ func IToMap(item interface{}) (map[string]interface{}, error) {
 					return ret, err
 				}
 			}
-			ret[getFieldName(field)] = data
+			fieldName, isOmitempty := getFieldName(field)
+			if isOmitempty && isEmptyValue(v.Field(i)) {
+				continue
+			}
+			ret[fieldName] = data
 		}
 	default:
 		return ret, errors.New("not a valid data")
 	}
 	return ret, nil
+}
+
+func isEmptyValue(v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
+		return v.Len() == 0
+	case reflect.Bool:
+		return !v.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return v.Float() == 0
+	case reflect.Interface, reflect.Ptr:
+		return v.IsNil()
+	}
+	return false
 }

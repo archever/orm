@@ -1,204 +1,70 @@
-
-# simple sql genarater
-
-## TODO
-* [ ] auto get table name
-* [ ] support dest array type
-* [ ] support mysql array/json type
-* [ ] support pg
-* [x] TX supprt
+# orm
 
 ## usage
 
-### init
-install
-
-```bash
-go get "github.com/archever/orm"
-```
-
 ```golang
-import (
-	"github.com/archever/orm"
-	_ "github.com/go-sql-driver/mysql"
-)
+// 1. init a session
+db := sql.Open(...)
+s := orm.NewSession(db)
 
-var err error
-db, err = sql.Open("mysql", "root:zxcvbnm@tcp(127.0.0.1:3306)/demo")
-if err != nil {
-    log.Panic(err)
-}
-// init a instance
-o = orm.New(db)
+// 2. make a varible
+var dest orm.M
 
-// fetch data
-var dest interface{}
-err = o.Select("now() as now").One(&dest)
-if err != nil {
-    log.Panic(err)
-}
-log.Printf("now: %v", dest["now"].(time.Time))
-```
-
-### execute
-
-```golang
-var table = ` 
-create table test (
-	id int unsigned auto_increment,
-	name varchar(64),
-	primary key (id)
-);`
-
-_, _, err = o.Exec("drop table if exists test").Do()
-_, _, err = o.Exec(table).Do()
-```
-
-### insert/replace
-
-```golang
-// insert via map
-_, _, err = o.Table("test").Insert(orm.M{
-	"name": "arhever",
-}).Do()
-
-// insert via struct
-type testT struct {
-	ID int64
-	Name string
-}
-
-dataS1 := &testT{2, "Archever"}
-dataS2 := &testT{3, "data2"}
-dataS3 := &testT{4, "data3"}
-dataSlice := []*testT{
-	{10, "data10"},
-	{11, "data11"},
-	{12, "data12"},
-	{13, "data13"},
-}
-
-_, _, err = o.Table("test").Insert(dataS1).Do()
-_, _, err = o.Table("test").Insert(dataS2, dataS3).Do()
-_, _, err = o.Table("test").Insert(dataSlice...).Do()
-```
-
-### Update
-
-```golang
-o.Table("test").Update(orm.M{"name": "archever"}).Filter(orm.Equel("id", 10)).Do()
-o.Table("test").Update(orm.M{"name": "archever"}).Where("id=?", 10).Do()
-```
-
-### Delete
-
-```golang
-o.Table("test").Delete().Fiter(orm.Equel("id", 10)).Do()
+// 3. query
+s.Exec("select now()").One(&dest)
 ```
 
 ### select
 
 ```golang
-// for get all, dest must be a multiply value or interface like
-var dests interface{}
-// or
-var dests []interface{}
-var dests []MyStruct
-var dests []*MyStruct
-var dests []map[string]interface{}
-var dests []map[string]int64
-// or
-dests := []interface{}{}
-dests := []MyStruct{}
-dests := []*MyStruct{}
-dests := []map[string]interface{}{}
-dests := []map[string]int64{}
+var dest orm.M
+var dests []orm.M
+rowID, rowCount, err := s.Exec("select 1").Do()
+// select 1;
 
-o.Table("test").Select().Get(&dests)
+err := s.Table("t").Select().One(&dest)
+// select * from t limit 1;
 
-// for get one, dest must be a single value or interface like
-// and it will limit 1 automaticly
-var dest interface{}
-// or
-var dests MyStruct
-var dests *MyStruct
-var dests map[string]interface{}
-var dests map[string]int64
-// or
-dests := MyStruct{}
-dests := &MyStruct{}
-dests := map[string]interface{}{}
-dests := map[string]int64{}
+err := s.Table("t").Select("name", "id").Where("a", 1).Limit(1).Get(&dests)
+// select name id from t where a=? limit ?, [1, 1]
 
-o.Table("test").Select().One(&dest)
+err := s.Table("t").Select().Filter(f.Equel("a", 1), f.Gte("b", 2)).One(&dest)
+// select * from t where a=? and b>=? limit ?, [1,2,1]
+
+sql, args := s.Table("t").Select().SQL()
+// it won't execute sql but return the sql string and sql arguements
 ```
 
-### transaction
-you should just New a Tx instance and reused it
+### use a transction
+```golang
+tx, err := s.Begin()
+// use the tx as well as s
+
+tx.Table("t").Select().Do()
+
+tx.Commit()
+
+tx, err := s.Begin()
+// the next time`s.Begin()` get a new tx
+// if you forget to commit, the next time get a tx, it will rollback the priviouse one
+```
+
+### Insert
 
 ```golang
-tx := orm.NewTx(db)
-err := tx.Begin()
-# ... tx.Table ...
-err := tx.Commit()
-
-# another transact
-tx.Begin()
-# ...
-tx.RollBack()
+type TestTable struct {
+    ID int64 `column:id,omitempty`
+    Name string `column:"name"`
+}
+row1 := &TestTable{
+    Name: "archever"
+}
+row2 := orm.M{
+    "name": "archever",
+}
+s.Table("t").Insert(row1).Do()
+s.Table("t").Insert(row2).Do()
 ```
 
-### custom struct serialize
-there are tow interfaces to handler serialize, similar to encoding/json
-
-* (*)UnMarshaler
-* Marshaler
-
-if the interface implemented, orm will use the func to handler sql data to struct and struct to sql data
-
-```golang
-type Date struct {
-	value Time.time
-}
-
-// UnMarshalSQL sql field to struct
-func (d *date) UnMarshalSQL(field []byte) error {
-	v, err := time.ParseInLocation("2006-01-02 15:04:05", string(field), time.Now().Location())
-	if err != nil {
-		return err
-	}
-	t.Time = v
-	return nil
-}
-
-// MarshalSQL struct to sql field
-func (d date) MarshalSQL() (string, error) {
-	return t.Time.Format("2006-01-02 15:04:05"), nil
-}
-
-type MyTable struct {
-	ID int64
-	CreateDate Date `column:"create_date"` 
-}
-
-var dest MyTale
-data := &MyTable{
-	CreateDate: time.Now(),
-} 
-o.Table("mytable").Insert(data).Do()
-o.Table("mytable").Select().One(&dest)
-```
-
-
-## developer
-
-### init a dev mysql	
-
-`docker-compose up -d`
-
-### test
-
-`go test`
-
-* init test data in main_test.go
-* use `.SQL()` to check the generated sql and args
+### more
+more usage see [example](./examplt/)

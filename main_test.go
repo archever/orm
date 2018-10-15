@@ -2,40 +2,65 @@ package orm
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"testing"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 var db *sql.DB
-var o OrmI
+var s *Session
 
 var table = `
 create table test (
 	id int unsigned auto_increment,
 	name varchar(64),
-	now datetime,
-	createtime datetime,
+	type int,
+	datetime datetime,
 	primary key (id)
 );`
 
+type userT int64
+
+func (u userT) UnMarshalSQL(raw []byte) error {
+	u = userT(raw[0])
+	return nil
+}
+
+func (u userT) MarshalSQL() (string, error) {
+	return fmt.Sprintf("%#v", u), nil
+}
+
+const (
+	Male   userT = iota + 1
+	FeMale userT = iota + 1
+)
+
+var _ UnMarshaler = Male
+var _ Marshaler = Male
+
+type destT struct {
+	ID       int64 `column:"omitempty"`
+	Name     string
+	Datetime time.Time
+	UserType userT `column:"type"`
+}
+
 func initdata() {
 	data1 := M{
-		"name":       "archever",
-		"now":        "2018-09-13 12:01:00",
-		"createtime": "2018-09-13 12:11:00",
+		"name":     "archever",
+		"type":     Male,
+		"datetime": "2018-09-13 12:11:00",
 	}
-	data2 := M{
-		"name":       "archever2",
-		"now":        "2018-09-13 12:02:00",
-		"createtime": "2018-09-13 12:12:00",
+	data2 := destT{
+		Name:     "archever2",
+		UserType: FeMale,
+		Datetime: time.Now(),
 	}
-	_, _, err := o.Table("test").Insert(data1).Do()
-	if err != nil {
-		log.Panic(err)
-	}
-	_, _, err = o.Table("test").Insert(data2).Do()
+	_, _, err := s.Table("test").Insert(data1).Do()
+	_, _, err = s.Table("test").Insert(data2).Do()
 	if err != nil {
 		log.Panic(err)
 	}
@@ -47,16 +72,16 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Panic(err)
 	}
-	o = New(db)
-	_, _, err = o.Exec("drop table if exists test").Do()
+	s = NewSession(db)
+	_, _, err = s.Exec("drop table if exists test").Do()
 	if err != nil {
 		log.Panic(err)
 	}
-	_, _, err = o.Exec(table).Do()
+	_, _, err = s.Exec(table).Do()
 	if err != nil {
 		log.Panic(err)
 	}
 	initdata()
 	m.Run()
-	defer o.Exec("drop table if exists test").Do()
+	defer s.Exec("drop table if exists test").Do()
 }

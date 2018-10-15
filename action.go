@@ -1,172 +1,77 @@
-// action is a sql generater after orm, usally to execut sql
-
 package orm
 
 import (
 	"database/sql"
-	"errors"
-	"fmt"
-	"log"
-	"strings"
 )
 
-// Action sql executor implement
-type Action struct {
-	db       *sql.DB
-	sql      string
-	args     []interface{}
-	limit    int64
-	orderby  []string
-	groupby  []string
-	offset   int64
-	isOffset bool
-	filter   *FilterItem
-	err      error
+type action struct {
+	db    *sql.DB
+	tx    *sql.Tx
+	table string
 }
 
-var _ ActionI = &Action{}
-
-func (a *Action) finish() error {
-	if a.err != nil {
-		return a.err
+func (o *action) errStmt(err error) *stmt {
+	return &stmt{
+		err: err,
 	}
-	if a.filter != nil {
-		a.sql += " where " + a.filter.Where
-		a.args = append(a.args, a.filter.Args...)
+}
+func (o *action) passStmt(sql string, args ...interface{}) *stmt {
+	return &stmt{
+		db:   o.db,
+		sql:  sql,
+		args: args,
 	}
-	if len(a.groupby) > 0 {
-		a.sql += fmt.Sprintf(" group by %s", strings.Join(a.groupby, ", "))
-	}
-	if len(a.orderby) > 0 {
-		a.sql += fmt.Sprintf(" order by %s", strings.Join(a.orderby, ", "))
-	}
-	if a.limit > 0 {
-		a.sql += " limit ?"
-		a.args = append(a.args, a.limit)
-	}
-	if a.offset > 0 {
-		a.sql += " offset ?"
-		a.args = append(a.args, a.offset)
-	}
-	log.Printf("sql: %s, %v", a.sql, a.args)
-	return nil
 }
 
-// SQL return the sql info for testing
-func (a *Action) SQL() (string, []interface{}, error) {
-	err := a.finish()
+func (o *action) Select(field ...string) *stmt {
+	sql := sqlSelect(o.table, field...)
+	return o.passStmt(sql)
+}
+
+func (o *action) Update(data map[string]interface{}) *stmt {
+	sql, args, err := sqlUpdate(o.table, data)
 	if err != nil {
-		return "", nil, err
+		return o.errStmt(err)
 	}
-	return a.sql, a.args, nil
+	return o.passStmt(sql, args...)
 }
 
-// Do executing sql
-func (a *Action) Do() (int64, int64, error) {
-	err := a.finish()
+func (o *action) Insert(row interface{}) *stmt {
+	sql, args, err := sqlInsert(o.table, row)
 	if err != nil {
-		return 0, 0, err
+		return o.errStmt(err)
 	}
-	res, err := a.db.Exec(a.sql, a.args...)
+	return o.passStmt(sql, args...)
+}
+
+func (o *action) InsertMany(rows interface{}) *stmt {
+	sql, args, err := sqlInsertMany(o.table, rows)
 	if err != nil {
-		return 0, 0, err
+		return o.errStmt(err)
 	}
-	id, err := res.LastInsertId()
+	return o.passStmt(sql, args...)
+}
+
+func (o *action) Replace(row interface{}) *stmt {
+	sql, args, err := sqlReplace(o.table, row)
 	if err != nil {
-		return 0, 0, err
+		return o.errStmt(err)
 	}
-	count, err := res.RowsAffected()
+	return o.passStmt(sql, args...)
+}
+
+func (o *action) ReplaceMany(rows interface{}) *stmt {
+	sql, args, err := sqlReplaceMany(o.table, rows)
 	if err != nil {
-		return 0, 0, err
+		return o.errStmt(err)
 	}
-	return id, count, nil
+	return o.passStmt(sql, args...)
 }
 
-// Get executing sql and fetch the data and restore to dest
-func (a *Action) Get(dest interface{}) error {
-	err := a.finish()
+func (o *action) Delete() *stmt {
+	sql, err := sqlDelete(o.table)
 	if err != nil {
-		return err
+		return o.errStmt(err)
 	}
-	rows, err := a.db.Query(a.sql, a.args...)
-	if err != nil {
-		return err
-	}
-	err = scanQueryRows(dest, rows)
-	return err
-}
-
-// One executing sql fetch one data and restore to dest
-func (a *Action) One(dest interface{}) error {
-	err := a.finish()
-	if err != nil {
-		return err
-	}
-	a.limit = 1
-	rows, err := a.db.Query(a.sql, a.args...)
-	if err != nil {
-		return err
-	}
-	err = scanQueryOne(dest, rows)
-	return err
-}
-
-// Filter generate where condition
-func (a *Action) Filter(f ...*FilterItem) ActionI {
-	if len(f) == 0 {
-		a.err = errors.New("where can not be empty")
-		return a
-	}
-	filter := And(f...)
-	a.filter = filter
-	return a
-}
-
-// Where generate where condition
-func (a *Action) Where(cond string, arg ...interface{}) ActionI {
-	filter := S(cond, arg...)
-	a.filter = filter
-	return a
-}
-
-// OrderBy set sql order by
-func (a *Action) OrderBy(o ...string) ActionI {
-	if len(o) == 0 {
-		a.err = errors.New("order by empty")
-		return a
-	}
-	a.orderby = append(a.orderby, strings.Join(o, " "))
-	return a
-}
-
-// GroupBy set sql group by
-func (a *Action) GroupBy(o ...string) ActionI {
-	if len(o) == 0 {
-		a.err = errors.New("group by empty")
-		return a
-	}
-	a.groupby = append(a.groupby, strings.Join(o, " "))
-	return a
-}
-
-// Limit set sql limit
-func (a *Action) Limit(l int64) ActionI {
-	a.limit = l
-	return a
-}
-
-// Offset set sql offset
-func (a *Action) Offset(o int64) ActionI {
-	a.offset = o
-	return a
-}
-
-// Page set sql limit and offset
-func (a *Action) Page(page, psize int64) ActionI {
-	if page < 1 {
-		page = 1
-	}
-	a.limit = psize
-	a.offset = (page - 1) * psize
-	return a
+	return o.passStmt(sql)
 }
