@@ -6,7 +6,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/archever/ormv2/f"
+	"github.com/archever/orm/f"
 )
 
 type stmt struct {
