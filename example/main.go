@@ -4,11 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 	"time"
 
-	orm "github.com/archever/ormv2"
+	"github.com/archever/orm"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -16,25 +15,14 @@ var s *orm.Session
 
 type gender int64
 
-func (g gender) MarshalSQL() (string, error) {
-	return fmt.Sprintf("%v", g), nil
-}
-
-func (g *gender) UnMarshalSQL(raw []byte) error {
-	v, err := strconv.ParseInt(string(raw), 10, 64)
-	*g = gender(v)
-	return err
-}
-
 type hobby []string
 
 func (h hobby) MarshalSQL() (string, error) {
 	return strings.Join(h, ","), nil
 }
 
-func (h *hobby) UnMarshalSQL(raw []byte) error {
-	str := string(raw)
-	*h = strings.Split(str, ",")
+func (h *hobby) UnMarshalSQL(raw *orm.ScanRow) error {
+	*h = strings.Split(raw.ToString(), ",")
 	return nil
 }
 
@@ -47,9 +35,9 @@ type Date struct {
 func (d Date) MarshalSQL() (string, error) {
 	return fmt.Sprintf("%04d-%02d-%02d", d.year, d.month, d.day), nil
 }
-func (d *Date) UnMarshalSQL(raw []byte) error {
+func (d *Date) UnMarshalSQL(raw *orm.ScanRow) error {
 	var month int
-	_, err := fmt.Sscanf(string(raw), "%04d-%02d-%02d", &d.year, &month, &d.day)
+	_, err := fmt.Sscanf(raw.ToString(), "%04d-%02d-%02d", &d.year, &month, &d.day)
 	d.month = time.Month(month)
 	return err
 }
