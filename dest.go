@@ -13,7 +13,7 @@ import (
 
 // UnMarshaler data to read in sql field
 type UnMarshaler interface {
-	UnMarshalSQL([]byte) error
+	UnMarshalSQL(*ScanRow) error
 }
 
 // Marshaler data to store in sql field
@@ -87,8 +87,6 @@ func ScanQueryOne(dest interface{}, rows *sql.Rows) error {
 	rv = indirect(rv)
 	switch rv.Kind() {
 	case reflect.Interface:
-		// assert not interface method
-		// set default value &map[string]interface{}{}
 		if rv.NumMethod() == 0 {
 			rv = reflect.ValueOf(map[string]interface{}{})
 			err := ToMap(res, rv)
@@ -99,10 +97,8 @@ func ScanQueryOne(dest interface{}, rows *sql.Rows) error {
 			return nil
 		}
 	case reflect.Map:
-		// ToMap
 		err = ToMap(res, rv)
 	case reflect.Struct:
-		// ToStruct
 		err = ToStruct(res, rv)
 	default:
 		return errors.New("invelid dest type")
@@ -294,6 +290,30 @@ func ToMap(row map[string]*ScanRow, rv reflect.Value) error {
 			}
 			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(data))
 		}
+	case reflect.Uint8:
+		for k, v := range row {
+			data, err := v.ToByte()
+			if err != nil {
+				return err
+			}
+			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(data))
+		}
+	case reflect.Int:
+		for k, v := range row {
+			data, err := v.ToInt()
+			if err != nil {
+				return err
+			}
+			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(data))
+		}
+	case reflect.Int8:
+		for k, v := range row {
+			data, err := v.ToInt8()
+			if err != nil {
+				return err
+			}
+			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(data))
+		}
 	case reflect.Bool:
 		for k, v := range row {
 			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v.ToBool()))
@@ -310,15 +330,11 @@ func ToMap(row map[string]*ScanRow, rv reflect.Value) error {
 // ToStruct row to struct
 func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 	for i := 0; i < rv.NumField(); i++ {
-		// struct 值
 		ele := rv.Field(i)
-		// 字段名
 		fieldName, _ := getFieldName(rv.Type().Field(i))
-		// 读取字段值
 		if data, ok := row[fieldName]; ok {
-			// handler UnMarshalSQL
 			if m, ok := ele.Addr().Interface().(UnMarshaler); ok {
-				err := m.UnMarshalSQL(data.Value)
+				err := m.UnMarshalSQL(data)
 				if err != nil {
 					return err
 				}
@@ -329,15 +345,77 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 			switch ele.Type().Kind() {
 			case reflect.String:
 				v := data.ToString()
-				ele.Set(reflect.ValueOf(v))
-
+				rv := reflect.ValueOf(v)
+				if ele.Type().ConvertibleTo(rv.Type()) {
+					rv = rv.Convert(ele.Type())
+				}
+				if !ele.Type().AssignableTo(rv.Type()) {
+					return errors.New("can not assign")
+				}
+				ele.Set(rv)
 			case reflect.Int64:
 				v, err := data.ToInt64()
 				if err != nil {
 					return err
 				}
-				ele.Set(reflect.ValueOf(v))
-			case reflect.Ptr, reflect.Struct:
+				rv := reflect.ValueOf(v)
+				if ele.Type().ConvertibleTo(rv.Type()) {
+					rv = rv.Convert(ele.Type())
+				}
+				if !ele.Type().AssignableTo(rv.Type()) {
+					return errors.New("can not assign")
+				}
+				ele.Set(rv)
+			case reflect.Int:
+				v, err := data.ToInt()
+				if err != nil {
+					return err
+				}
+				rv := reflect.ValueOf(v)
+				if ele.Type().ConvertibleTo(rv.Type()) {
+					rv = rv.Convert(ele.Type())
+				}
+				if !ele.Type().AssignableTo(rv.Type()) {
+					return errors.New("can not assign")
+				}
+				ele.Set(rv)
+			case reflect.Int8:
+				v, err := data.ToInt8()
+				if err != nil {
+					return err
+				}
+				rv := reflect.ValueOf(v)
+				if ele.Type().ConvertibleTo(rv.Type()) {
+					rv = rv.Convert(ele.Type())
+				}
+				if !ele.Type().AssignableTo(rv.Type()) {
+					return errors.New("can not assign")
+				}
+				ele.Set(rv)
+			case reflect.Uint8:
+				v, err := data.ToByte()
+				if err != nil {
+					return err
+				}
+				rv := reflect.ValueOf(v)
+				if ele.Type().ConvertibleTo(rv.Type()) {
+					rv = rv.Convert(ele.Type())
+				}
+				if !ele.Type().AssignableTo(rv.Type()) {
+					return errors.New("can not assign")
+				}
+				ele.Set(rv)
+			case reflect.Bool:
+				v := data.ToBool()
+				rv := reflect.ValueOf(v)
+				if ele.Type().ConvertibleTo(rv.Type()) {
+					rv = rv.Convert(ele.Type())
+				}
+				if !ele.Type().AssignableTo(rv.Type()) {
+					return errors.New("can not assign")
+				}
+				ele.Set(rv)
+			case reflect.Ptr, reflect.Struct, reflect.Slice:
 				if ele.Type().Kind() == reflect.Ptr {
 					ele.Set(reflect.New(ele.Type().Elem()))
 					ele = ele.Elem()
@@ -349,6 +427,15 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 						return err
 					}
 					ele.Set(reflect.ValueOf(v))
+				case []byte:
+					rv := reflect.ValueOf(data.Value)
+					if ele.Type().ConvertibleTo(rv.Type()) {
+						rv = rv.Convert(ele.Type())
+					}
+					if !ele.Type().AssignableTo(rv.Type()) {
+						return errors.New("can not assign")
+					}
+					ele.Set(rv)
 				default:
 					return fmt.Errorf("unknown type %T", ele.Interface())
 				}

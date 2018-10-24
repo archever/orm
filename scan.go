@@ -55,8 +55,10 @@ func (r *ScanRow) ToValue() (interface{}, error) {
 	switch r.Column.DatabaseTypeName() {
 	case "INT", "SMALLINT", "TINYINT", "BIGINT":
 		ret, err = r.ToInt64()
-	case "DATETIME", "DATE", "TIMESTAMP", "TIME":
+	case "DATETIME", "TIMESTAMP", "TIME":
 		ret, err = r.ToTime()
+	case "DATE":
+		ret, err = r.ToDateTime()
 	case "VARCHAR", "CHAR", "TEXT":
 		ret = r.ToString()
 	case "BLOB":
@@ -81,6 +83,33 @@ func (r *ScanRow) ToInt64() (int64, error) {
 	return v, err
 }
 
+// ToInt return the int64 value
+func (r *ScanRow) ToInt() (int, error) {
+	if r.ToString() == "" {
+		return 0, nil
+	}
+	v, err := strconv.Atoi(r.ToString())
+	return v, err
+}
+
+// ToInt8 return the int64 value
+func (r *ScanRow) ToInt8() (int8, error) {
+	if r.ToString() == "" {
+		return 0, nil
+	}
+	v, err := strconv.Atoi(r.ToString())
+	return int8(v), err
+}
+
+// ToByte return the int64 value
+func (r *ScanRow) ToByte() (byte, error) {
+	if r.ToString() == "" {
+		return 0, nil
+	}
+	v, err := strconv.Atoi(r.ToString())
+	return byte(v), err
+}
+
 // ToBool return the bool value
 func (r *ScanRow) ToBool() bool {
 	switch strings.ToLower(r.ToString()) {
@@ -99,5 +128,16 @@ func (r *ScanRow) ToTime() (time.Time, error) {
 		return ret, nil
 	}
 	v, err := time.ParseInLocation("2006-01-02 15:04:05", r.ToString(), time.Now().Location())
+	return v, err
+}
+
+// ToDateTime return the time value
+func (r *ScanRow) ToDateTime() (time.Time, error) {
+	var ret time.Time
+	strV := r.ToString()
+	if strV == "" {
+		return ret, nil
+	}
+	v, err := time.ParseInLocation("2006-01-02", r.ToString(), time.Now().Location())
 	return v, err
 }
