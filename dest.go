@@ -111,12 +111,21 @@ func getFieldName(field reflect.StructField) (string, bool) {
 	isOmitempty := false
 	if ok {
 		fieldNames := strings.Split(fieldName, ",")
-		for _, f := range fieldNames {
-			if f == "omitempty" {
+		if len(fieldNames) == 1 {
+			if fieldNames[0] == "omitempty" {
 				isOmitempty = true
-				continue
+				fieldName = ""
+			} else {
+				fieldName = fieldNames[0]
 			}
-			fieldName = f
+		} else {
+			for _, f := range fieldNames {
+				if f == "omitempty" {
+					isOmitempty = true
+					continue
+				}
+				fieldName = f
+			}
 		}
 	}
 	if fieldName == "" {
