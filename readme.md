@@ -53,7 +53,7 @@ tx, err := s.Begin()
 
 ```golang
 type TestTable struct {
-    ID int64 `column:id,omitempty`
+    ID int64 `column:"id,omitempty"`
     Name string `column:"name"`
 }
 row1 := &TestTable{
