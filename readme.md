@@ -52,8 +52,9 @@ tx, err := s.Begin()
 ### Insert
 
 ```golang
+// add a `omitempty` tag to avoid insert the column while value is empty
 type TestTable struct {
-    ID int64 `column:"id,omitempty"`
+    ID int64    `column:"id,omitempty"`
     Name string `column:"name"`
 }
 row1 := &TestTable{
@@ -66,5 +67,39 @@ s.Table("t").Insert(row1).Do()
 s.Table("t").Insert(row2).Do()
 ```
 
+### costom sql marshaler
+```golang
+type MyType struct {
+    ...
+}
+
+// or no pointer reciver
+func (t *MyType) MarshalSQL () (string, error) {
+    ...
+}
+
+func (t *MyType) UnMarshalSQL (*orm.ScanRow) (error) {
+    ...
+}
+
+// use myType in select or fiter or insert sqls
+s.Table("t").Insert(orm.M{
+    "column": MyType
+}).Do()
+s.Table("t").Select().Where("a=?", MyType{...})
+```
+
+### some filters
+```golang
+cond1 := f.Equel("a", 1)
+cond2 := f.Lt("b", 1)
+cond := f.Or(cond1, cond2)
+
+// or 
+conds := []*f.FilterItem{}
+conds = append(conds, cond1, cond2)
+s.Table(...).Filter(...conds)
+```
+
 ### more
-more usage see [example](./examplt/)
+more usage see [example](./example/)
