@@ -1,8 +1,15 @@
 # orm
 
+## install
+```shell
+go get github.com/archever/orm
+```
+
 ## usage
 
 ```golang
+import "github.com/archever/orm"
+
 // 1. init a session
 db := sql.Open(...)
 s := orm.NewSession(db)
@@ -11,7 +18,7 @@ s := orm.NewSession(db)
 var dest orm.M
 
 // 3. query
-s.Exec("select now()").One(&dest)
+s.Exec("select now() as now").One(&dest)
 ```
 
 ### select
@@ -91,6 +98,8 @@ s.Table("t").Select().Where("a=?", MyType{...})
 
 ### some filters
 ```golang
+import "github.com/archever/orm/f"
+
 cond1 := f.Equel("a", 1)
 cond2 := f.Lt("b", 1)
 cond := f.Or(cond1, cond2)
