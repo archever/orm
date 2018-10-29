@@ -34,10 +34,11 @@ func (a *stmt) finish() error {
 	if a.err != nil {
 		return a.err
 	}
+	args := []interface{}{}
 	if len(a.filters) != 0 {
 		filter := f.And(a.filters...)
 		a.sql += " where " + filter.Where
-		a.args = append(a.args, filter.Args...)
+		args = append(args, filter.Args...)
 	}
 	if len(a.groupby) > 0 {
 		a.sql += fmt.Sprintf(" group by %s", strings.Join(a.groupby, ", "))
@@ -47,11 +48,23 @@ func (a *stmt) finish() error {
 	}
 	if a.limit > 0 {
 		a.sql += " limit ?"
-		a.args = append(a.args, a.limit)
+		args = append(args, a.limit)
 	}
 	if a.offset > 0 {
 		a.sql += " offset ?"
-		a.args = append(a.args, a.offset)
+		args = append(args, a.offset)
+	}
+	for _, i := range args {
+		m := ITOMarshaler(i)
+		if m != nil {
+			data, err := m.MarshalSQL()
+			if err != nil {
+				return err
+			}
+			a.args = append(a.args, data)
+		} else {
+			a.args = append(a.args, i)
+		}
 	}
 	log.Printf("sql: %s, %v", a.sql, a.args)
 	return nil

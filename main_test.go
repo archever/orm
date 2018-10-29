@@ -24,22 +24,24 @@ create table test (
 
 type userT int64
 
-func (u userT) UnMarshalSQL(raw []byte) error {
-	u = userT(raw[0])
+func (u *userT) UnMarshalSQL(raw *ScanRow) error {
+	var err error
+	d, err := raw.ToInt64()
+	if err != nil {
+		return err
+	}
+	*u = userT(d)
 	return nil
 }
 
-func (u userT) MarshalSQL() (string, error) {
+func (u *userT) MarshalSQL() (string, error) {
 	return fmt.Sprintf("%#v", u), nil
 }
 
 const (
-	Male   userT = iota + 1
-	FeMale userT = iota + 1
+	Male   userT = 1
+	FeMale userT = 2
 )
-
-var _ UnMarshaler = Male
-var _ Marshaler = Male
 
 type destT struct {
 	ID       int64 `column:"omitempty"`
@@ -67,6 +69,7 @@ func initdata() {
 }
 
 func TestMain(m *testing.M) {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	var err error
 	db, err = sql.Open("mysql", "root:zxcvbnm@tcp(127.0.0.1:3306)/unittest")
 	if err != nil {

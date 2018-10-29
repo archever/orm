@@ -21,6 +21,19 @@ type Marshaler interface {
 	MarshalSQL() (string, error)
 }
 
+func ITOMarshaler(m interface{}) Marshaler {
+	rv := reflect.ValueOf(m)
+	var ret Marshaler
+	if mi, ok := rv.Interface().(Marshaler); ok {
+		m = mi
+	} else if rv.CanAddr() {
+		if mi, ok := rv.Addr().Interface().(Marshaler); ok {
+			m = mi
+		}
+	}
+	return ret
+}
+
 func ScanQueryRows(dest interface{}, rows *sql.Rows) error {
 	var err error
 	rv := reflect.ValueOf(dest)
