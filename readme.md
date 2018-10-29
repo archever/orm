@@ -10,15 +10,23 @@ go get github.com/archever/orm
 ```golang
 import "github.com/archever/orm"
 
-// 1. init a session
-db := sql.Open(...)
-s := orm.NewSession(db)
+// 1. open a db
+s := orm.Open("mysql", "uri")
 
 // 2. make a varible
 var dest orm.M
 
 // 3. query
 s.Exec("select now() as now").One(&dest)
+
+// 4. make a transaction
+tx := s.Begin()
+
+// 5. execute
+tx.Exec("...").Do()
+
+// 6. commit
+tx.Commit()
 ```
 
 ### select

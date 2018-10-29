@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"strings"
@@ -71,8 +70,7 @@ create table t(
 func init() {
 	// run a mysql instance
 	// docker run --rm -e MYSQL_ROOT_PASSWORD=zxcvbnm -e MYSQL_DATABASE=unittest -d mysql
-	db, _ := sql.Open("mysql", "root:zxcvbnm@tcp(127.0.0.1:3306)/unittest")
-	s = orm.NewSession(db)
+	s, _ = orm.Open("mysql", "root:zxcvbnm@tcp(127.0.0.1:3306)/unittest")
 }
 
 func tearDown() {

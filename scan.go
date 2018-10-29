@@ -4,7 +4,6 @@ package orm
 
 import (
 	"database/sql"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -49,7 +48,7 @@ func Scan(rows *sql.Rows) ([]map[string]*ScanRow, error) {
 
 // ToValue return the default value for database type
 func (r *ScanRow) ToValue() (interface{}, error) {
-	log.Printf("name: %-10s type: %-10s value: %-10s", r.Column.Name(), r.Column.DatabaseTypeName(), string(r.Value))
+	// log.Printf("name: %-10s type: %-10s value: %-10s", r.Column.Name(), r.Column.DatabaseTypeName(), string(r.Value))
 	var ret interface{}
 	var err error
 	switch r.Column.DatabaseTypeName() {

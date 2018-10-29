@@ -13,8 +13,12 @@ type TxSession struct {
 	tx *sql.Tx
 }
 
-func NewSession(db *sql.DB) *Session {
-	return &Session{db: db}
+func Open(driverName, dataSourceName string) (*Session, error) {
+	db, err := sql.Open(driverName, dataSourceName)
+	if err != nil {
+		return nil, err
+	}
+	return &Session{db: db}, nil
 }
 
 func (s *Session) Begin() (*TxSession, error) {

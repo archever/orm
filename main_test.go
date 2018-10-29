@@ -71,11 +71,10 @@ func initdata() {
 func TestMain(m *testing.M) {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	var err error
-	db, err = sql.Open("mysql", "root:zxcvbnm@tcp(127.0.0.1:3306)/unittest")
+	s, err = Open("mysql", "root:zxcvbnm@tcp(127.0.0.1:3306)/unittest")
 	if err != nil {
 		log.Panic(err)
 	}
-	s = NewSession(db)
 	_, _, err = s.Exec("drop table if exists test").Do()
 	if err != nil {
 		log.Panic(err)
