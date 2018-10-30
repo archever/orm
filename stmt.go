@@ -13,6 +13,7 @@ type stmt struct {
 	db       *sql.DB
 	tx       *sql.Tx
 	sql      string
+	table    string
 	args     []interface{}
 	limit    int64
 	orderby  []string
@@ -30,66 +31,68 @@ func (a *stmt) isTx() bool {
 	return true
 }
 
-func (a *stmt) finish() error {
+func (a *stmt) finish() (string, []interface{}, error) {
 	if a.err != nil {
-		return a.err
+		return "", nil, a.err
 	}
+	sqls := a.sql
+	rawArgs := a.args[:]
 	args := []interface{}{}
 	if len(a.filters) != 0 {
 		filter := f.And(a.filters...)
-		a.sql += " where " + filter.Where
-		args = append(args, filter.Args...)
+		sqls += " where " + filter.Where
+		rawArgs = append(rawArgs, filter.Args...)
 	}
 	if len(a.groupby) > 0 {
-		a.sql += fmt.Sprintf(" group by %s", strings.Join(a.groupby, ", "))
+		sqls += fmt.Sprintf(" group by %s", strings.Join(a.groupby, ", "))
 	}
 	if len(a.orderby) > 0 {
-		a.sql += fmt.Sprintf(" order by %s", strings.Join(a.orderby, ", "))
+		sqls += fmt.Sprintf(" order by %s", strings.Join(a.orderby, ", "))
 	}
 	if a.limit > 0 {
-		a.sql += " limit ?"
-		args = append(args, a.limit)
+		sqls += " limit ?"
+		rawArgs = append(rawArgs, a.limit)
 	}
 	if a.offset > 0 {
-		a.sql += " offset ?"
-		args = append(args, a.offset)
+		sqls += " offset ?"
+		rawArgs = append(rawArgs, a.offset)
 	}
-	for _, i := range args {
+	for _, i := range rawArgs {
 		m := ITOMarshaler(i)
 		if m != nil {
 			data, err := m.MarshalSQL()
 			if err != nil {
-				return err
+				return "", nil, err
 			}
-			a.args = append(a.args, data)
+			args = append(args, data)
 		} else {
-			a.args = append(a.args, i)
+			args = append(args, i)
 		}
 	}
-	log.Printf("sql: %s, %v", a.sql, a.args)
-	return nil
+	log.Printf("sql: %s, %v", sqls, args)
+	return sqls, args, nil
 }
 
 // SQL return the sql info for testing
 func (a *stmt) SQL() (string, []interface{}, error) {
-	err := a.finish()
+	sqls, args, err := a.finish()
 	if err != nil {
 		return "", nil, err
 	}
-	return a.sql, a.args, nil
+	return sqls, args, nil
 }
 
 // Do executing sql
 func (a *stmt) Do() (rowID, rowCount int64, err error) {
-	err = a.finish()
+	sqls, args, err := a.finish()
 	if err != nil {
 		return 0, 0, err
 	}
 	var res sql.Result
 	if a.isTx() {
-		res, err = a.tx.Exec(a.sql, a.args...)
+		res, err = a.tx.Exec(sqls, args...)
 	} else {
-		res, err = a.db.Exec(a.sql, a.args...)
+		res, err = a.db.Exec(sqls, args...)
 	}
 	if err != nil {
 		return 0, 0, err
@@ -105,17 +108,44 @@ func (a *stmt) Do() (rowID, rowCount int64, err error) {
 	return id, count, nil
 }
 
+func (a *stmt) Count() (int64, error) {
+	tmp := a.sql
+	defer func() {
+		a.sql = tmp
+	}()
+	a.sql = "select count(*) as cnt from " + a.table
+	sqls, args, err := a.finish()
+	if err != nil {
+		return 0, err
+	}
+	dest := M{}
+	var rows *sql.Rows
+	if a.isTx() {
+		rows, err = a.tx.Query(sqls, args...)
+	} else {
+		rows, err = a.db.Query(sqls, args...)
+	}
+	if err != nil {
+		return 0, err
+	}
+	err = ScanQueryOne(&dest, rows)
+	if err != nil {
+		return 0, err
+	}
+	return dest["cnt"].(int64), nil
+}
+
 // Get executing sql and fetch the data and restore to dest
 func (a *stmt) Get(dest interface{}) error {
-	err := a.finish()
+	sqls, args, err := a.finish()
 	if err != nil {
 		return err
 	}
 	var rows *sql.Rows
 	if a.isTx() {
-		rows, err = a.tx.Query(a.sql, a.args...)
+		rows, err = a.tx.Query(sqls, args...)
 	} else {
-		rows, err = a.db.Query(a.sql, a.args...)
+		rows, err = a.db.Query(sqls, args...)
 	}
 	if err != nil {
 		return err
@@ -127,15 +157,15 @@ func (a *stmt) Get(dest interface{}) error {
 // One executing sql fetch one data and restore to dest
 func (a *stmt) One(dest interface{}) error {
 	a.limit = 1
-	err := a.finish()
+	sqls, args, err := a.finish()
 	if err != nil {
 		return err
 	}
 	var rows *sql.Rows
 	if a.isTx() {
-		rows, err = a.tx.Query(a.sql, a.args...)
+		rows, err = a.tx.Query(sqls, args...)
 	} else {
-		rows, err = a.db.Query(a.sql, a.args...)
+		rows, err = a.db.Query(sqls, args...)
 	}
 	if err != nil {
 		return err

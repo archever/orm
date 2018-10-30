@@ -21,15 +21,11 @@ type Marshaler interface {
 	MarshalSQL() (string, error)
 }
 
+// ITOMarshaler TOOD: 这个方法不能判断指针接受者
 func ITOMarshaler(m interface{}) Marshaler {
-	rv := reflect.ValueOf(m)
 	var ret Marshaler
-	if mi, ok := rv.Interface().(Marshaler); ok {
-		m = mi
-	} else if rv.CanAddr() {
-		if mi, ok := rv.Addr().Interface().(Marshaler); ok {
-			m = mi
-		}
+	if mi, ok := m.(Marshaler); ok {
+		ret = mi
 	}
 	return ret
 }

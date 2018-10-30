@@ -2,7 +2,6 @@ package orm
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"testing"
 	"time"
@@ -23,20 +22,6 @@ create table test (
 );`
 
 type userT int64
-
-func (u *userT) UnMarshalSQL(raw *ScanRow) error {
-	var err error
-	d, err := raw.ToInt64()
-	if err != nil {
-		return err
-	}
-	*u = userT(d)
-	return nil
-}
-
-func (u *userT) MarshalSQL() (string, error) {
-	return fmt.Sprintf("%#v", u), nil
-}
 
 const (
 	Male   userT = 1
