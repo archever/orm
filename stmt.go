@@ -82,6 +82,28 @@ func (a *stmt) SQL() (string, []interface{}, error) {
 	return sqls, args, nil
 }
 
+func (a *stmt) MustDo() (rowID, rowCount int64) {
+	rowID, rowCount, err := a.Do()
+	if err != nil {
+		log.Panic(err)
+	}
+	return rowID, rowCount
+}
+
+func (a *stmt) MustGet(dest interface{}) {
+	err := a.Get(dest)
+	if err != nil && err != ErrNotFund {
+		log.Panic(err)
+	}
+}
+
+func (a *stmt) MustOne(dest interface{}) {
+	err := a.One(dest)
+	if err != nil && err != ErrNotFund {
+		log.Panic(err)
+	}
+}
+
 // Do executing sql
 func (a *stmt) Do() (rowID, rowCount int64, err error) {
 	sqls, args, err := a.finish()

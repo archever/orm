@@ -4,7 +4,6 @@ package orm
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -34,7 +33,7 @@ func ScanQueryRows(dest interface{}, rows *sql.Rows) error {
 	var err error
 	rv := reflect.ValueOf(dest)
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
-		return errors.New("invalid dest type")
+		return ErrDestType
 	}
 	// fetch data
 	reses, err := Scan(rows)
@@ -57,7 +56,7 @@ func ScanQueryRows(dest interface{}, rows *sql.Rows) error {
 			}
 			reflect.ValueOf(dest).Elem().Set(rv)
 		} else {
-			return errors.New("should not be method interface")
+			return ErrDestType
 		}
 	case reflect.Array:
 		rv, err = ToArray(reses, rv)
@@ -72,7 +71,7 @@ func ScanQueryRows(dest interface{}, rows *sql.Rows) error {
 		}
 		reflect.ValueOf(dest).Elem().Set(rv)
 	default:
-		return errors.New("invelid dest type")
+		return ErrDestType
 	}
 	return nil
 }
@@ -81,7 +80,7 @@ func ScanQueryOne(dest interface{}, rows *sql.Rows) error {
 	var err error
 	rv := reflect.ValueOf(dest)
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
-		return errors.New("invalid dest type")
+		return ErrDestType
 	}
 	// fetch one data
 	reses, err := Scan(rows)
@@ -110,7 +109,7 @@ func ScanQueryOne(dest interface{}, rows *sql.Rows) error {
 	case reflect.Struct:
 		err = ToStruct(res, rv)
 	default:
-		return errors.New("invelid dest type")
+		return ErrDestType
 	}
 	return err
 }
@@ -157,7 +156,6 @@ func indirect(v reflect.Value) reflect.Value {
 			v = e
 		}
 	}
-
 	if v.Kind() != reflect.Ptr {
 		return v
 	}
@@ -216,7 +214,7 @@ func ToSlice(reses []map[string]*ScanRow, rv reflect.Value) (reflect.Value, erro
 			}
 		}
 	default:
-		return rv, errors.New("invalid type while parsing to slice item")
+		return rv, ErrDestType
 	}
 	return rv, nil
 }
@@ -272,7 +270,7 @@ func ToArray(reses []map[string]*ScanRow, rv reflect.Value) (reflect.Value, erro
 			index++
 		}
 	default:
-		return rv, errors.New("invalid type while parsing to slice item")
+		return rv, ErrDestType
 	}
 	return rv, nil
 }
@@ -285,7 +283,7 @@ func ToMap(row map[string]*ScanRow, rv reflect.Value) error {
 		rv = reflect.MakeMap(rv.Type())
 	}
 	if rv.Type().Key().Kind() != reflect.String {
-		return errors.New("invalid map key, string expected")
+		return ErrDestType
 	}
 	switch rv.Type().Elem().Kind() {
 	case reflect.Interface:
@@ -337,7 +335,7 @@ func ToMap(row map[string]*ScanRow, rv reflect.Value) error {
 			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v.ToBool()))
 		}
 	default:
-		return errors.New("invalid dest map value type")
+		return ErrDestType
 	}
 	if r0.IsNil() {
 		r0.Set(rv)
@@ -351,6 +349,7 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 		ele := rv.Field(i)
 		fieldName, _ := getFieldName(rv.Type().Field(i))
 		if data, ok := row[fieldName]; ok {
+
 			if m, ok := ele.Addr().Interface().(UnMarshaler); ok {
 				err := m.UnMarshalSQL(data)
 				if err != nil {
@@ -368,7 +367,7 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 					rv = rv.Convert(ele.Type())
 				}
 				if !ele.Type().AssignableTo(rv.Type()) {
-					return errors.New("can not assign")
+					return ErrNotAssignable
 				}
 				ele.Set(rv)
 			case reflect.Int64:
@@ -381,7 +380,7 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 					rv = rv.Convert(ele.Type())
 				}
 				if !ele.Type().AssignableTo(rv.Type()) {
-					return errors.New("can not assign")
+					return ErrNotAssignable
 				}
 				ele.Set(rv)
 			case reflect.Int:
@@ -394,7 +393,7 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 					rv = rv.Convert(ele.Type())
 				}
 				if !ele.Type().AssignableTo(rv.Type()) {
-					return errors.New("can not assign")
+					return ErrNotAssignable
 				}
 				ele.Set(rv)
 			case reflect.Int8:
@@ -407,7 +406,7 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 					rv = rv.Convert(ele.Type())
 				}
 				if !ele.Type().AssignableTo(rv.Type()) {
-					return errors.New("can not assign")
+					return ErrNotAssignable
 				}
 				ele.Set(rv)
 			case reflect.Uint8:
@@ -420,7 +419,7 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 					rv = rv.Convert(ele.Type())
 				}
 				if !ele.Type().AssignableTo(rv.Type()) {
-					return errors.New("can not assign")
+					return ErrNotAssignable
 				}
 				ele.Set(rv)
 			case reflect.Bool:
@@ -430,7 +429,7 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 					rv = rv.Convert(ele.Type())
 				}
 				if !ele.Type().AssignableTo(rv.Type()) {
-					return errors.New("can not assign")
+					return ErrNotAssignable
 				}
 				ele.Set(rv)
 			case reflect.Ptr, reflect.Struct, reflect.Slice:
@@ -451,7 +450,7 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 						rv = rv.Convert(ele.Type())
 					}
 					if !ele.Type().AssignableTo(rv.Type()) {
-						return errors.New("can not assign")
+						return ErrNotAssignable
 					}
 					ele.Set(rv)
 				default:
@@ -503,7 +502,7 @@ func IToMap(v reflect.Value) (map[string]interface{}, error) {
 			ret[fieldName] = data
 		}
 	default:
-		return ret, errors.New("not a valid data")
+		return ret, ErrDestType
 	}
 	return ret, nil
 }

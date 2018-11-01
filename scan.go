@@ -43,6 +43,9 @@ func Scan(rows *sql.Rows) ([]map[string]*ScanRow, error) {
 		}
 		rets = append(rets, ret)
 	}
+	if len(rets) == 0 {
+		return rets, ErrNotFund
+	}
 	return rets, nil
 }
 

@@ -1,7 +1,6 @@
 package orm
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -28,11 +27,11 @@ func sqlUpdate(table string, data map[string]interface{}) (string, []interface{}
 	var set []string
 	var args []interface{}
 	if len(data) == 0 {
-		err = errors.New("no data set")
+		err = ErrCreateEmptyData
 		return sql, args, err
 	}
 	if table == "" {
-		err = errors.New("No table set")
+		err = ErrTableNotSet
 		return sql, args, err
 	}
 	for k, v := range data {
@@ -71,7 +70,7 @@ func _sqlInsertMany(table string, action string, rows interface{}) (string, []in
 	var sql string
 	var args []interface{}
 	if table == "" {
-		err = errors.New("No table set")
+		err = ErrTableNotSet
 		return sql, args, err
 	}
 	init := false
@@ -105,7 +104,7 @@ func _sqlInsertMany(table string, action string, rows interface{}) (string, []in
 			insertData = append(insertData, fmt.Sprintf("(%s)", strings.Join(argS, ", ")))
 		}
 	default:
-		err = errors.New("insertmany rows not iterable")
+		err = ErrCreateEmptyData
 	}
 
 	sql = fmt.Sprintf("%s into %s(%s) values %s", action, table,
@@ -135,7 +134,7 @@ func sqlDelete(table string) (string, error) {
 	var err error
 	sql := "delete"
 	if table == "" {
-		err = errors.New("No table set")
+		err = ErrTableNotSet
 		return sql, err
 	}
 	sql += " form " + table

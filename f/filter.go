@@ -95,12 +95,13 @@ func And(f ...*FilterItem) *FilterItem {
 	}
 }
 
-func Or(left, right *FilterItem) *FilterItem {
+func Or(f ...*FilterItem) *FilterItem {
+	if len(f) == 1 {
+		return f[0]
+	}
 	whereS := []string{}
 	args := []interface{}{}
-	for _, i := range [...]*FilterItem{
-		left, right,
-	} {
+	for _, i := range f {
 		whereS = append(whereS, i.Where)
 		args = append(args, i.Args...)
 	}
