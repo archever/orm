@@ -114,14 +114,18 @@ func ScanQueryOne(dest interface{}, rows *sql.Rows) error {
 	return err
 }
 
-func getFieldName(field reflect.StructField) (string, bool) {
+func getFieldName(field reflect.StructField) (string, bool, bool) {
 	fieldName, ok := field.Tag.Lookup("column")
 	isOmitempty := false
+	isIgnore := false
 	if ok {
 		fieldNames := strings.Split(fieldName, ",")
 		if len(fieldNames) == 1 {
 			if fieldNames[0] == "omitempty" {
 				isOmitempty = true
+				fieldName = ""
+			} else if fieldNames[0] == "-" {
+				isIgnore = true
 				fieldName = ""
 			} else {
 				fieldName = fieldNames[0]
@@ -131,15 +135,19 @@ func getFieldName(field reflect.StructField) (string, bool) {
 				if f == "omitempty" {
 					isOmitempty = true
 					continue
+					if f == "-" {
+						isIgnore = true
+						break
+					}
+					fieldName = f
 				}
-				fieldName = f
 			}
 		}
 	}
 	if fieldName == "" {
 		fieldName = strings.ToLower(field.Name)
 	}
-	return fieldName, isOmitempty
+	return fieldName, isOmitempty, isIgnore
 }
 
 func indirect(v reflect.Value) reflect.Value {
@@ -347,21 +355,49 @@ func ToMap(row map[string]*ScanRow, rv reflect.Value) error {
 func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 	for i := 0; i < rv.NumField(); i++ {
 		ele := rv.Field(i)
-		fieldName, _ := getFieldName(rv.Type().Field(i))
+		fieldName, _, isIgnore := getFieldName(rv.Type().Field(i))
+		if isIgnore {
+			continue
+		}
 		if data, ok := row[fieldName]; ok {
-
-			if m, ok := ele.Addr().Interface().(UnMarshaler); ok {
+			if ele.Type().Kind() == reflect.Ptr {
+				ele.Set(reflect.New(ele.Type().Elem()))
+			}
+			if m, ok := ele.Interface().(UnMarshaler); ok {
 				err := m.UnMarshalSQL(data)
 				if err != nil {
 					return err
 				}
-				ele.Set(reflect.ValueOf(m).Elem())
+				ele.Set(reflect.ValueOf(m))
 				continue
+			}
+			if ele.CanAddr() {
+				if m, ok := ele.Addr().Interface().(UnMarshaler); ok {
+					err := m.UnMarshalSQL(data)
+					if err != nil {
+						return err
+					}
+					ele.Set(reflect.ValueOf(m).Elem())
+					continue
+				}
 			}
 
 			switch ele.Type().Kind() {
 			case reflect.String:
 				v := data.ToString()
+				rv := reflect.ValueOf(v)
+				if ele.Type().ConvertibleTo(rv.Type()) {
+					rv = rv.Convert(ele.Type())
+				}
+				if !ele.Type().AssignableTo(rv.Type()) {
+					return ErrNotAssignable
+				}
+				ele.Set(rv)
+			case reflect.Float64:
+				v, err := data.ToFloat64()
+				if err != nil {
+					return err
+				}
 				rv := reflect.ValueOf(v)
 				if ele.Type().ConvertibleTo(rv.Type()) {
 					rv = rv.Convert(ele.Type())
@@ -495,8 +531,8 @@ func IToMap(v reflect.Value) (map[string]interface{}, error) {
 					return ret, err
 				}
 			}
-			fieldName, isOmitempty := getFieldName(field)
-			if isOmitempty && isEmptyValue(v.Field(i)) {
+			fieldName, isOmitempty, isIgnore := getFieldName(field)
+			if isIgnore || (isOmitempty && isEmptyValue(v.Field(i))) {
 				continue
 			}
 			ret[fieldName] = data

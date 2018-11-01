@@ -85,6 +85,24 @@ func (r *ScanRow) ToInt64() (int64, error) {
 	return v, err
 }
 
+// ToFloat64 return the float64 value
+func (r *ScanRow) ToFloat64() (float64, error) {
+	if r.ToString() == "" {
+		return 0, nil
+	}
+	v, err := strconv.ParseFloat(r.ToString(), 64)
+	return v, err
+}
+
+// ToFloat32 return the float32 value
+func (r *ScanRow) ToFloat32() (float32, error) {
+	if r.ToString() == "" {
+		return 0, nil
+	}
+	v, err := strconv.ParseFloat(r.ToString(), 32)
+	return float32(v), err
+}
+
 // ToInt return the int64 value
 func (r *ScanRow) ToInt() (int, error) {
 	if r.ToString() == "" {
