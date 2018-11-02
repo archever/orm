@@ -145,7 +145,7 @@ func getFieldName(field reflect.StructField) (string, bool, bool) {
 		}
 	}
 	if fieldName == "" {
-		fieldName = strings.ToLower(field.Name)
+		fieldName = field.Name
 	}
 	return fieldName, isOmitempty, isIgnore
 }
@@ -359,46 +359,136 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 		if isIgnore {
 			continue
 		}
-		if data, ok := row[fieldName]; ok {
-			if ele.Type().Kind() == reflect.Ptr {
-				ele.Set(reflect.New(ele.Type().Elem()))
+		var data *ScanRow
+		var ok bool
+		if data, ok = row[fieldName]; !ok {
+			fieldName = strings.ToLower(fieldName)
+		}
+		if data, ok = row[fieldName]; !ok {
+			continue
+		}
+		if ele.Type().Kind() == reflect.Ptr {
+			ele.Set(reflect.New(ele.Type().Elem()))
+		}
+		if m, ok := ele.Interface().(UnMarshaler); ok {
+			err := m.UnMarshalSQL(data)
+			if err != nil {
+				return err
 			}
-			if m, ok := ele.Interface().(UnMarshaler); ok {
+			ele.Set(reflect.ValueOf(m))
+			continue
+		}
+		if ele.CanAddr() {
+			if m, ok := ele.Addr().Interface().(UnMarshaler); ok {
 				err := m.UnMarshalSQL(data)
 				if err != nil {
 					return err
 				}
-				ele.Set(reflect.ValueOf(m))
+				ele.Set(reflect.ValueOf(m).Elem())
 				continue
 			}
-			if ele.CanAddr() {
-				if m, ok := ele.Addr().Interface().(UnMarshaler); ok {
-					err := m.UnMarshalSQL(data)
-					if err != nil {
-						return err
-					}
-					ele.Set(reflect.ValueOf(m).Elem())
-					continue
-				}
-			}
+		}
 
-			switch ele.Type().Kind() {
-			case reflect.String:
-				v := data.ToString()
-				rv := reflect.ValueOf(v)
-				if ele.Type().ConvertibleTo(rv.Type()) {
-					rv = rv.Convert(ele.Type())
-				}
-				if !ele.Type().AssignableTo(rv.Type()) {
-					return ErrNotAssignable
-				}
-				ele.Set(rv)
-			case reflect.Float64:
-				v, err := data.ToFloat64()
+		switch ele.Type().Kind() {
+		case reflect.String:
+			v := data.ToString()
+			rv := reflect.ValueOf(v)
+			if ele.Type().ConvertibleTo(rv.Type()) {
+				rv = rv.Convert(ele.Type())
+			}
+			if !ele.Type().AssignableTo(rv.Type()) {
+				return ErrNotAssignable
+			}
+			ele.Set(rv)
+		case reflect.Float64:
+			v, err := data.ToFloat64()
+			if err != nil {
+				return err
+			}
+			rv := reflect.ValueOf(v)
+			if ele.Type().ConvertibleTo(rv.Type()) {
+				rv = rv.Convert(ele.Type())
+			}
+			if !ele.Type().AssignableTo(rv.Type()) {
+				return ErrNotAssignable
+			}
+			ele.Set(rv)
+		case reflect.Int64:
+			v, err := data.ToInt64()
+			if err != nil {
+				return err
+			}
+			rv := reflect.ValueOf(v)
+			if ele.Type().ConvertibleTo(rv.Type()) {
+				rv = rv.Convert(ele.Type())
+			}
+			if !ele.Type().AssignableTo(rv.Type()) {
+				return ErrNotAssignable
+			}
+			ele.Set(rv)
+		case reflect.Int:
+			v, err := data.ToInt()
+			if err != nil {
+				return err
+			}
+			rv := reflect.ValueOf(v)
+			if ele.Type().ConvertibleTo(rv.Type()) {
+				rv = rv.Convert(ele.Type())
+			}
+			if !ele.Type().AssignableTo(rv.Type()) {
+				return ErrNotAssignable
+			}
+			ele.Set(rv)
+		case reflect.Int8:
+			v, err := data.ToInt8()
+			if err != nil {
+				return err
+			}
+			rv := reflect.ValueOf(v)
+			if ele.Type().ConvertibleTo(rv.Type()) {
+				rv = rv.Convert(ele.Type())
+			}
+			if !ele.Type().AssignableTo(rv.Type()) {
+				return ErrNotAssignable
+			}
+			ele.Set(rv)
+		case reflect.Uint8:
+			v, err := data.ToByte()
+			if err != nil {
+				return err
+			}
+			rv := reflect.ValueOf(v)
+			if ele.Type().ConvertibleTo(rv.Type()) {
+				rv = rv.Convert(ele.Type())
+			}
+			if !ele.Type().AssignableTo(rv.Type()) {
+				return ErrNotAssignable
+			}
+			ele.Set(rv)
+		case reflect.Bool:
+			v := data.ToBool()
+			rv := reflect.ValueOf(v)
+			if ele.Type().ConvertibleTo(rv.Type()) {
+				rv = rv.Convert(ele.Type())
+			}
+			if !ele.Type().AssignableTo(rv.Type()) {
+				return ErrNotAssignable
+			}
+			ele.Set(rv)
+		case reflect.Ptr, reflect.Struct, reflect.Slice:
+			if ele.Type().Kind() == reflect.Ptr {
+				ele.Set(reflect.New(ele.Type().Elem()))
+				ele = ele.Elem()
+			}
+			switch ele.Interface().(type) {
+			case time.Time:
+				v, err := data.ToTime()
 				if err != nil {
 					return err
 				}
-				rv := reflect.ValueOf(v)
+				ele.Set(reflect.ValueOf(v))
+			case []byte:
+				rv := reflect.ValueOf(data.Value)
 				if ele.Type().ConvertibleTo(rv.Type()) {
 					rv = rv.Convert(ele.Type())
 				}
@@ -406,95 +496,11 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 					return ErrNotAssignable
 				}
 				ele.Set(rv)
-			case reflect.Int64:
-				v, err := data.ToInt64()
-				if err != nil {
-					return err
-				}
-				rv := reflect.ValueOf(v)
-				if ele.Type().ConvertibleTo(rv.Type()) {
-					rv = rv.Convert(ele.Type())
-				}
-				if !ele.Type().AssignableTo(rv.Type()) {
-					return ErrNotAssignable
-				}
-				ele.Set(rv)
-			case reflect.Int:
-				v, err := data.ToInt()
-				if err != nil {
-					return err
-				}
-				rv := reflect.ValueOf(v)
-				if ele.Type().ConvertibleTo(rv.Type()) {
-					rv = rv.Convert(ele.Type())
-				}
-				if !ele.Type().AssignableTo(rv.Type()) {
-					return ErrNotAssignable
-				}
-				ele.Set(rv)
-			case reflect.Int8:
-				v, err := data.ToInt8()
-				if err != nil {
-					return err
-				}
-				rv := reflect.ValueOf(v)
-				if ele.Type().ConvertibleTo(rv.Type()) {
-					rv = rv.Convert(ele.Type())
-				}
-				if !ele.Type().AssignableTo(rv.Type()) {
-					return ErrNotAssignable
-				}
-				ele.Set(rv)
-			case reflect.Uint8:
-				v, err := data.ToByte()
-				if err != nil {
-					return err
-				}
-				rv := reflect.ValueOf(v)
-				if ele.Type().ConvertibleTo(rv.Type()) {
-					rv = rv.Convert(ele.Type())
-				}
-				if !ele.Type().AssignableTo(rv.Type()) {
-					return ErrNotAssignable
-				}
-				ele.Set(rv)
-			case reflect.Bool:
-				v := data.ToBool()
-				rv := reflect.ValueOf(v)
-				if ele.Type().ConvertibleTo(rv.Type()) {
-					rv = rv.Convert(ele.Type())
-				}
-				if !ele.Type().AssignableTo(rv.Type()) {
-					return ErrNotAssignable
-				}
-				ele.Set(rv)
-			case reflect.Ptr, reflect.Struct, reflect.Slice:
-				if ele.Type().Kind() == reflect.Ptr {
-					ele.Set(reflect.New(ele.Type().Elem()))
-					ele = ele.Elem()
-				}
-				switch ele.Interface().(type) {
-				case time.Time:
-					v, err := data.ToTime()
-					if err != nil {
-						return err
-					}
-					ele.Set(reflect.ValueOf(v))
-				case []byte:
-					rv := reflect.ValueOf(data.Value)
-					if ele.Type().ConvertibleTo(rv.Type()) {
-						rv = rv.Convert(ele.Type())
-					}
-					if !ele.Type().AssignableTo(rv.Type()) {
-						return ErrNotAssignable
-					}
-					ele.Set(rv)
-				default:
-					return fmt.Errorf("unknown type %T", ele.Interface())
-				}
 			default:
 				return fmt.Errorf("unknown type %T", ele.Interface())
 			}
+		default:
+			return fmt.Errorf("unknown type %T", ele.Interface())
 		}
 	}
 	return nil
