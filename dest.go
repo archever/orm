@@ -118,7 +118,11 @@ func getFieldName(field reflect.StructField) (string, bool, bool) {
 	fieldName, ok := field.Tag.Lookup("column")
 	isOmitempty := false
 	isIgnore := false
-	if ok {
+	// 判断是否是导出字段
+	first := string(field.Name[0])
+	if first == strings.ToLower(first) {
+		isIgnore = true
+	} else if ok {
 		fieldNames := strings.Split(fieldName, ",")
 		if len(fieldNames) == 1 {
 			if fieldNames[0] == "omitempty" {
@@ -135,12 +139,13 @@ func getFieldName(field reflect.StructField) (string, bool, bool) {
 				if f == "omitempty" {
 					isOmitempty = true
 					continue
-					if f == "-" {
-						isIgnore = true
-						break
-					}
-					fieldName = f
 				}
+				if f == "-" {
+					isIgnore = true
+					fieldName = ""
+					break
+				}
+				fieldName = f
 			}
 		}
 	}
