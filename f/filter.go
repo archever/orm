@@ -49,6 +49,13 @@ func Gt(field string, arg interface{}) *FilterItem {
 	return filter(">", field, arg)
 }
 
+func Between(field string, left, right interface{}) *FilterItem {
+	return &FilterItem{
+		Where: fmt.Sprintf("%s between ? and ?", field),
+		Args:  []interface{}{left, right},
+	}
+}
+
 func nin(o, field string, arg interface{}) *FilterItem {
 	argS := []string{}
 	argV := []interface{}{}
