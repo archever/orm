@@ -155,6 +155,7 @@ func getFieldName(field reflect.StructField) (string, bool, bool) {
 	return fieldName, isOmitempty, isIgnore
 }
 
+// TODO 重新实现
 func indirect(v reflect.Value) reflect.Value {
 	v0 := v
 	haveAddr := false
@@ -162,30 +163,35 @@ func indirect(v reflect.Value) reflect.Value {
 		haveAddr = true
 		v = v.Addr()
 	}
-	if v.Kind() == reflect.Interface && !v.IsNil() {
-		e := v.Elem()
-		if e.Kind() == reflect.Ptr && !e.IsNil() && e.Elem().Kind() == reflect.Ptr {
-			haveAddr = false
-			v = e
+	for {
+		if v.Kind() == reflect.Interface && !v.IsNil() {
+			e := v.Elem()
+			if e.Kind() == reflect.Ptr && !e.IsNil() && e.Elem().Kind() == reflect.Ptr {
+				haveAddr = false
+				v = e
+				continue
+			}
 		}
-	}
-	if v.Kind() != reflect.Ptr {
-		return v
-	}
-
-	if v.Elem().Kind() != reflect.Ptr && v.CanSet() {
-		return v
-	}
-
-	if v.IsNil() {
-		v.Set(reflect.New(v.Type().Elem()))
-	}
-
-	if haveAddr {
-		v = v0
-		haveAddr = false
-	} else {
-		v = v.Elem()
+		if v.Kind() != reflect.Ptr {
+			break
+		}
+		if v.Kind() == reflect.Ptr && v.Elem().Kind() == reflect.Ptr {
+			v = v.Elem()
+			continue
+		}
+		if v.IsNil() {
+			v.Set(reflect.New(v.Type().Elem()))
+		}
+		if v.Elem().Kind() != reflect.Ptr && v.CanSet() {
+			v = v.Elem()
+			continue
+		}
+		if haveAddr {
+			v = v0
+			haveAddr = false
+		} else if v.Kind() == reflect.Ptr {
+			v = v.Elem()
+		}
 	}
 	return v
 }
