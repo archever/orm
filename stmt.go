@@ -15,10 +15,10 @@ type stmt struct {
 	sql      string
 	table    string
 	args     []interface{}
-	limit    int64
+	limit    int
 	orderby  []string
 	groupby  []string
-	offset   int64
+	offset   int
 	isOffset bool
 	filters  []*f.FilterItem
 	err      error
@@ -151,7 +151,9 @@ func (a *stmt) Count() (int64, error) {
 		return 0, err
 	}
 	err = ScanQueryOne(&dest, rows)
-	if err != nil {
+	if err == ErrNotFund {
+		return 0, nil
+	} else if err != nil {
 		return 0, err
 	}
 	return dest["cnt"].(int64), nil
@@ -226,19 +228,19 @@ func (a *stmt) GroupBy(o ...string) *stmt {
 }
 
 // Limit set sql limit
-func (a *stmt) Limit(l int64) *stmt {
+func (a *stmt) Limit(l int) *stmt {
 	a.limit = l
 	return a
 }
 
 // Offset set sql offset
-func (a *stmt) Offset(o int64) *stmt {
+func (a *stmt) Offset(o int) *stmt {
 	a.offset = o
 	return a
 }
 
 // Page set sql limit and offset
-func (a *stmt) Page(page, psize int64) *stmt {
+func (a *stmt) Page(page, psize int) *stmt {
 	if page < 1 {
 		page = 1
 	}
