@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"github.com/archever/orm/f"
 )
 
 type M map[string]interface{}
@@ -13,10 +15,13 @@ func sqlSelect(table string, field ...string) string {
 	if len(field) == 0 {
 		sql = "select *"
 	} else {
+		for i, _ := range field {
+			field[i] = f.FieldWapper(field[i])
+		}
 		sql = "select " + strings.Join(field, ", ")
 	}
 	if table != "" {
-		sql += " from " + table
+		sql += " from " + f.FieldWapper(table)
 	}
 	return sql
 }
@@ -35,10 +40,10 @@ func sqlUpdate(table string, data map[string]interface{}) (string, []interface{}
 		return sql, args, err
 	}
 	for k, v := range data {
-		set = append(set, k+"=?")
+		set = append(set, f.FieldWapper(k)+"=?")
 		args = append(args, v)
 	}
-	sql = "update " + table + " set " + strings.Join(set, ", ")
+	sql = "update " + f.FieldWapper(table) + " set " + strings.Join(set, ", ")
 	return sql, args, err
 }
 
@@ -54,11 +59,11 @@ func _sqlInsert(table string, action string, row interface{}) (string, []interfa
 		return sql, args, err
 	}
 	for k := range value {
-		keys = append(keys, k)
+		keys = append(keys, f.FieldWapper(k))
 		args = append(args, value[k])
 		argS = append(argS, "?")
 	}
-	sql = fmt.Sprintf("%s into %s(%s) values (%s)", action, table,
+	sql = fmt.Sprintf("%s into %s(%s) values (%s)", action, f.FieldWapper(table),
 		strings.Join(keys, ", "),
 		strings.Join(argS, ", "),
 	)
@@ -91,7 +96,7 @@ func _sqlInsertMany(table string, action string, rows interface{}) (string, []in
 			// init keys
 			if !init {
 				for k := range value {
-					keys = append(keys, k)
+					keys = append(keys, f.FieldWapper(k))
 				}
 				init = true
 			}
@@ -107,7 +112,7 @@ func _sqlInsertMany(table string, action string, rows interface{}) (string, []in
 		err = ErrCreateEmptyData
 	}
 
-	sql = fmt.Sprintf("%s into %s(%s) values %s", action, table,
+	sql = fmt.Sprintf("%s into %s(%s) values %s", action, f.FieldWapper(table),
 		strings.Join(keys, ", "),
 		strings.Join(insertData, ", "),
 	)
@@ -137,7 +142,7 @@ func sqlDelete(table string) (string, error) {
 		err = ErrTableNotSet
 		return sql, err
 	}
-	sql += " form " + table
+	sql += " form " + f.FieldWapper(table)
 	return sql, err
 }
 

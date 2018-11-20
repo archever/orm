@@ -11,9 +11,13 @@ type FilterItem struct {
 	Args  []interface{}
 }
 
+func FieldWapper(field string) string {
+	return fmt.Sprintf("%s%s%s", "`", field, "`")
+}
+
 func filter(o, field string, arg interface{}) *FilterItem {
 	return &FilterItem{
-		Where: fmt.Sprintf("%s%s?", field, o),
+		Where: fmt.Sprintf("%s%s?", FieldWapper(field), o),
 		Args:  []interface{}{arg},
 	}
 }
@@ -51,7 +55,7 @@ func Gt(field string, arg interface{}) *FilterItem {
 
 func Between(field string, left, right interface{}) *FilterItem {
 	return &FilterItem{
-		Where: fmt.Sprintf("%s between ? and ?", field),
+		Where: fmt.Sprintf("%s between ? and ?", FieldWapper(field)),
 		Args:  []interface{}{left, right},
 	}
 }
@@ -65,7 +69,7 @@ func nin(o, field string, arg interface{}) *FilterItem {
 		argV = append(argV, v.Index(i).Interface())
 	}
 	return &FilterItem{
-		Where: fmt.Sprintf("%s %s (%s)", field, o, strings.Join(argS, ",")),
+		Where: fmt.Sprintf("%s %s (%s)", FieldWapper(field), o, strings.Join(argS, ",")),
 		Args:  argV,
 	}
 }

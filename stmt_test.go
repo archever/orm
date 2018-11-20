@@ -39,7 +39,7 @@ func TestCount(t *testing.T) {
 
 func TestFilter(t *testing.T) {
 	sql, args, err := s.Table("test").Select().Filter(f.Equal("a", 1), f.Gt("b", 2)).SQL()
-	assert.Equal(t, "select * from test where (a=? and b>?)", sql)
+	assert.Equal(t, "select * from `test` where (`a`=? and `b`>?)", sql)
 	assert.Equal(t, []interface{}{1, 2}, args)
 	assert.NoError(t, err)
 }
@@ -54,7 +54,7 @@ var _ Marshaler = &A{}
 
 func TestFilterMarshal(t *testing.T) {
 	sql, args, err := s.Table("test").Select().Filter(f.Or(f.Equal("a", &A{}), f.Gt("b", 2))).SQL()
-	assert.Equal(t, "select * from test where (a=? or b>?)", sql)
+	assert.Equal(t, "select * from `test` where (`a`=? or `b`>?)", sql)
 	assert.Equal(t, []interface{}{"cmt", 2}, args)
 	assert.NoError(t, err)
 }
