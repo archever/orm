@@ -18,6 +18,7 @@ func (o *action) errStmt(err error) *stmt {
 func (o *action) passStmt(sql string, args ...interface{}) *stmt {
 	return &stmt{
 		db:    o.db,
+		tx:    o.tx,
 		sql:   sql,
 		args:  args,
 		table: o.table,
