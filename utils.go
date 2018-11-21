@@ -142,7 +142,7 @@ func sqlDelete(table string) (string, error) {
 		err = ErrTableNotSet
 		return sql, err
 	}
-	sql += " form " + f.FieldWapper(table)
+	sql += " from " + f.FieldWapper(table)
 	return sql, err
 }
 
