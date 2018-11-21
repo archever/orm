@@ -29,6 +29,20 @@ func S(cond string, arg ...interface{}) *FilterItem {
 	}
 }
 
+func IsNull(field string) *FilterItem {
+	return &FilterItem{
+		Where: fmt.Sprintf("%s is null", FieldWapper(field)),
+		Args:  []interface{}{},
+	}
+}
+
+func IsNotNull(field string) *FilterItem {
+	return &FilterItem{
+		Where: fmt.Sprintf("%s is not null", FieldWapper(field)),
+		Args:  []interface{}{},
+	}
+}
+
 func Equal(field string, arg interface{}) *FilterItem {
 	return filter("=", field, arg)
 }

@@ -126,3 +126,4 @@ more usage see [example](./example/)
 * mashaler interface 指针类型递归检查
 * dest to *struct 处理空指针
 * 更多的单元测试
+* null 解析

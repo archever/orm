@@ -72,7 +72,7 @@ func TestGt(t *testing.T) {
 func TestIn(t *testing.T) {
 	ret := In("a", []string{"1", "2"})
 	assert.Equal(t, []interface{}{"1", "2"}, ret.Args)
-	assert.Equal(t, "a in (?,?)", ret.Where)
+	assert.Equal(t, "`a` in (?,?)", ret.Where)
 	ret = In("a", []int{1, 2})
 	assert.Equal(t, []interface{}{1, 2}, ret.Args)
 	assert.Equal(t, "`a` in (?,?)", ret.Where)
