@@ -61,10 +61,13 @@ func (a *stmt) finish() (string, []interface{}, error) {
 		m := ITOMarshaler(i)
 		if m != nil {
 			data, err := m.MarshalSQL()
-			if err != nil {
+			if err == ErrNull {
+				args = append(args, nil)
+			} else if err != nil {
 				return "", nil, err
+			} else {
+				args = append(args, data)
 			}
-			args = append(args, data)
 		} else {
 			args = append(args, i)
 		}
@@ -85,7 +88,7 @@ func (a *stmt) SQL() (string, []interface{}, error) {
 func (a *stmt) MustDo() (rowID, rowCount int64) {
 	rowID, rowCount, err := a.Do()
 	if err != nil {
-		log.Panic(err)
+		panic(err)
 	}
 	return rowID, rowCount
 }
@@ -93,14 +96,14 @@ func (a *stmt) MustDo() (rowID, rowCount int64) {
 func (a *stmt) MustGet(dest interface{}) {
 	err := a.Get(dest)
 	if err != nil && err != ErrNotFund {
-		log.Panic(err)
+		panic(err)
 	}
 }
 
 func (a *stmt) MustOne(dest interface{}) {
 	err := a.One(dest)
 	if err != nil && err != ErrNotFund {
-		log.Panic(err)
+		panic(err)
 	}
 }
 
@@ -108,6 +111,7 @@ func (a *stmt) MustOne(dest interface{}) {
 func (a *stmt) Do() (rowID, rowCount int64, err error) {
 	sqls, args, err := a.finish()
 	if err != nil {
+		log.Printf("err: %s", err)
 		return 0, 0, err
 	}
 	var res sql.Result

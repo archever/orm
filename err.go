@@ -8,4 +8,5 @@ var (
 	ErrNotAssignable   = errors.New("自定义类型不能赋值")
 	ErrCreateEmptyData = errors.New("插入数据不能为空")
 	ErrTableNotSet     = errors.New("未指定表名")
+	ErrNull            = errors.New("NUll")
 )

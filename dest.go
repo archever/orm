@@ -383,19 +383,25 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 		}
 		if m, ok := ele.Interface().(UnMarshaler); ok {
 			err := m.UnMarshalSQL(data)
-			if err != nil {
+			if err == ErrNull {
+				ele.Set(reflect.Zero(ele.Type()))
+			} else if err != nil {
 				return err
+			} else {
+				ele.Set(reflect.ValueOf(m))
 			}
-			ele.Set(reflect.ValueOf(m))
 			continue
 		}
 		if ele.CanAddr() {
 			if m, ok := ele.Addr().Interface().(UnMarshaler); ok {
 				err := m.UnMarshalSQL(data)
-				if err != nil {
+				if err == ErrNull {
+					ele.Set(reflect.Zero(ele.Type()))
+				} else if err != nil {
 					return err
+				} else {
+					ele.Set(reflect.ValueOf(m).Elem())
 				}
-				ele.Set(reflect.ValueOf(m).Elem())
 				continue
 			}
 		}
@@ -487,17 +493,25 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 			}
 			ele.Set(rv)
 		case reflect.Ptr, reflect.Struct, reflect.Slice:
-			if ele.Type().Kind() == reflect.Ptr {
-				ele.Set(reflect.New(ele.Type().Elem()))
-				ele = ele.Elem()
-			}
+			// if ele.Type().Kind() == reflect.Ptr {
+			// 	ele.Set(reflect.New(ele.Type().Elem()))
+			// 	ele = ele.Elem()
+			// }
 			switch ele.Interface().(type) {
 			case time.Time:
 				v, err := data.ToTime()
 				if err != nil {
-					return err
+					ele.Set(reflect.Zero(ele.Type()))
 				}
 				ele.Set(reflect.ValueOf(v))
+			case *time.Time:
+				v, err := data.ToTime()
+				if err != nil {
+					ele.Set(reflect.Zero(ele.Type()))
+				} else {
+					ele.Set(reflect.New(ele.Type().Elem()))
+					ele.Elem().Set(reflect.ValueOf(v))
+				}
 			case []byte:
 				rv := reflect.ValueOf(data.Value)
 				if ele.Type().ConvertibleTo(rv.Type()) {
@@ -531,7 +545,9 @@ func IToMap(v reflect.Value) (map[string]interface{}, error) {
 			if m, ok := data.(Marshaler); ok {
 				var err error
 				data, err = m.MarshalSQL()
-				if err != nil {
+				if err == ErrNull {
+					data = nil
+				} else if err != nil {
 					return ret, err
 				}
 			}
@@ -544,7 +560,9 @@ func IToMap(v reflect.Value) (map[string]interface{}, error) {
 			if m, ok := data.(Marshaler); ok {
 				var err error
 				data, err = m.MarshalSQL()
-				if err != nil {
+				if err == ErrNull {
+					data = nil
+				} else if err != nil {
 					return ret, err
 				}
 			}

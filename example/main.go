@@ -120,7 +120,7 @@ func selectData() {
 	// err := s.Table("t").Select().Filter(f.Equal("id", 2)).One(&res)
 	err := s.Table("t").Select().Where("id=?", 2).One(&res)
 	if err != nil {
-		log.Panic(err)
+		panic(err)
 	}
 	fmt.Printf("res: %#v", res)
 	fmt.Printf("res: %s", res.CreateTime)
