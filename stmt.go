@@ -72,7 +72,9 @@ func (a *stmt) finish() (string, []interface{}, error) {
 			args = append(args, i)
 		}
 	}
-	log.Printf("sql: %s, %v", sqls, args)
+	if Echo {
+		log.Printf("sql: %s, %v", sqls, args)
+	}
 	return sqls, args, nil
 }
 
@@ -111,7 +113,6 @@ func (a *stmt) MustOne(dest interface{}) {
 func (a *stmt) Do() (rowID, rowCount int64, err error) {
 	sqls, args, err := a.finish()
 	if err != nil {
-		log.Printf("err: %s", err)
 		return 0, 0, err
 	}
 	var res sql.Result

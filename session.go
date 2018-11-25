@@ -4,6 +4,9 @@ import (
 	"database/sql"
 )
 
+// 是否打印sql日志 默认是
+var Echo = true
+
 type Session struct {
 	db *sql.DB
 }
@@ -11,6 +14,10 @@ type Session struct {
 type TxSession struct {
 	db *sql.DB
 	tx *sql.Tx
+}
+
+func SetEcho(echo bool) {
+	Echo = echo
 }
 
 func Open(driverName, dataSourceName string) (*Session, error) {
