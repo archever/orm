@@ -75,7 +75,7 @@ type TestTable struct {
 row1 := &TestTable{
     Name: "archever"
 }
-row2 := orm.M{
+row2 := orm.f.M{
     "name": "archever",
 }
 s.Table("t").Insert(row1).Do()
@@ -98,7 +98,7 @@ func (t *MyType) UnMarshalSQL (*orm.ScanRow) (error) {
 }
 
 // use myType in select or fiter or insert sqls
-s.Table("t").Insert(orm.M{
+s.Table("t").Insert(orm.f.M{
     "column": MyType
 }).Do()
 s.Table("t").Select().Where("a=?", MyType{...})

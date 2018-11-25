@@ -26,7 +26,12 @@ func (o *action) passStmt(sql string, args ...interface{}) *stmt {
 }
 
 func (o *action) Select(field ...string) *stmt {
-	sql := sqlSelect(o.table, field...)
+	sql := sqlSelect(o.table, true, field...)
+	return o.passStmt(sql)
+}
+
+func (o *action) SelectS(field ...string) *stmt {
+	sql := sqlSelect(o.table, false, field...)
 	return o.passStmt(sql)
 }
 

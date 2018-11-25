@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+type M map[string]interface{}
+
 type FilterItem struct {
 	Where string
 	Args  []interface{}

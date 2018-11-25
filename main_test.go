@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/archever/orm/f"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -34,7 +35,7 @@ type destT struct {
 }
 
 func initdata() {
-	data1 := M{
+	data1 := f.M{
 		"name":     "archever",
 		"type":     Male,
 		"datetime": "2018-09-13 12:11:00",

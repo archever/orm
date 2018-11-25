@@ -3,6 +3,7 @@ package orm
 import (
 	"testing"
 
+	"github.com/archever/orm/f"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -74,7 +75,7 @@ func TestSelectRowsStrcutOneInterface(t *testing.T) {
 }
 
 func TestSelectRowsMap(t *testing.T) {
-	dest := []M{}
+	dest := []f.M{}
 	err := s.Table("test").Select().Get(&dest)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), dest[0]["id"])
@@ -82,7 +83,7 @@ func TestSelectRowsMap(t *testing.T) {
 }
 
 func TestSelectRowsMapNil(t *testing.T) {
-	var dest []M
+	var dest []f.M
 	err := s.Table("test").Select().Get(&dest)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), dest[0]["id"])
@@ -90,7 +91,7 @@ func TestSelectRowsMapNil(t *testing.T) {
 }
 
 func TestSelectRowsMapOne(t *testing.T) {
-	dest := M{}
+	dest := f.M{}
 	err := s.Table("test").Select().One(&dest)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), dest["id"])
@@ -98,7 +99,7 @@ func TestSelectRowsMapOne(t *testing.T) {
 }
 
 func TestSelectRowsMapOneNil(t *testing.T) {
-	var dest M
+	var dest f.M
 	err := s.Table("test").Select().One(&dest)
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), dest["id"])

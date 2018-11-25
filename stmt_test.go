@@ -16,7 +16,7 @@ func TestSQL(t *testing.T) {
 }
 
 func TestDo(t *testing.T) {
-	rowID, rowCNT, err := s.Table("test").Insert(M{
+	rowID, rowCNT, err := s.Table("test").Insert(f.M{
 		"name":     "archever",
 		"type":     Male,
 		"datetime": "2018-09-13 12:11:00",
@@ -27,7 +27,7 @@ func TestDo(t *testing.T) {
 }
 
 func TestCount(t *testing.T) {
-	var dest []M
+	var dest []f.M
 	stmt := s.Table("test").Select("name").Where("name=?", "archever")
 	cnt, err1 := stmt.Count()
 	err2 := stmt.Get(&dest)

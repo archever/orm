@@ -144,7 +144,7 @@ func (a *stmt) Count() (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	dest := M{}
+	dest := f.M{}
 	var rows *sql.Rows
 	if a.isTx() {
 		rows, err = a.tx.Query(sqls, args...)
@@ -227,7 +227,7 @@ func (a *stmt) OrderBy(field string, reverse bool) *stmt {
 
 // GroupBy set sql group by
 func (a *stmt) GroupBy(o ...string) *stmt {
-	a.groupby = append(a.groupby, strings.Join(o, " "))
+	a.groupby = append(a.groupby, strings.Join(o, ", "))
 	return a
 }
 

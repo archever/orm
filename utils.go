@@ -8,15 +8,15 @@ import (
 	"github.com/archever/orm/f"
 )
 
-type M map[string]interface{}
-
-func sqlSelect(table string, field ...string) string {
+func sqlSelect(table string, wapper bool, field ...string) string {
 	var sql string
 	if len(field) == 0 {
 		sql = "select *"
 	} else {
-		for i, _ := range field {
-			field[i] = f.FieldWapper(field[i])
+		if wapper {
+			for i := range field {
+				field[i] = f.FieldWapper(field[i])
+			}
 		}
 		sql = "select " + strings.Join(field, ", ")
 	}
