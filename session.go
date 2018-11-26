@@ -8,12 +8,12 @@ import (
 var Echo = true
 
 type Session struct {
-	db *sql.DB
+	DB *sql.DB
 }
 
 type TxSession struct {
-	db *sql.DB
-	tx *sql.Tx
+	DB *sql.DB
+	TX *sql.Tx
 }
 
 func SetEcho(echo bool) {
@@ -25,14 +25,14 @@ func Open(driverName, dataSourceName string) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Session{db: db}, nil
+	return &Session{DB: db}, nil
 }
 
 func (s *Session) Begin() (*TxSession, error) {
 	var err error
 	ret := new(TxSession)
-	ret.db = s.db
-	ret.tx, err = s.db.Begin()
+	ret.DB = s.DB
+	ret.TX, err = s.DB.Begin()
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (s *Session) Begin() (*TxSession, error) {
 func (s *Session) MustBegin() *TxSession {
 	var err error
 	ret := new(TxSession)
-	ret.tx, err = s.db.Begin()
+	ret.TX, err = s.DB.Begin()
 	if err != nil {
 		panic(err)
 	}
@@ -52,7 +52,7 @@ func (s *Session) MustBegin() *TxSession {
 func (s *Session) Exec(sql string, arg ...interface{}) *stmt {
 	ret := new(stmt)
 	sql, args := sqlExec(sql, arg...)
-	ret.db = s.db
+	ret.db = s.DB
 	ret.tx = nil
 	ret.sql = sql
 	ret.args = args
@@ -61,7 +61,7 @@ func (s *Session) Exec(sql string, arg ...interface{}) *stmt {
 
 func (s *Session) Table(t string) *action {
 	ret := new(action)
-	ret.db = s.db
+	ret.db = s.DB
 	ret.tx = nil
 	ret.table = t
 	return ret
@@ -70,8 +70,8 @@ func (s *Session) Table(t string) *action {
 func (s *TxSession) Exec(sql string, arg ...interface{}) *stmt {
 	ret := new(stmt)
 	sql, args := sqlExec(sql, arg...)
-	ret.db = s.db
-	ret.tx = s.tx
+	ret.db = s.DB
+	ret.tx = s.TX
 	ret.sql = sql
 	ret.args = args
 	return ret
@@ -79,16 +79,16 @@ func (s *TxSession) Exec(sql string, arg ...interface{}) *stmt {
 
 func (s *TxSession) Table(t string) *action {
 	ret := new(action)
-	ret.db = s.db
-	ret.tx = s.tx
+	ret.db = s.DB
+	ret.tx = s.TX
 	ret.table = t
 	return ret
 }
 
 func (s *TxSession) Commit() error {
-	return s.tx.Commit()
+	return s.TX.Commit()
 }
 
 func (s *TxSession) RollBack() error {
-	return s.tx.Rollback()
+	return s.TX.Rollback()
 }
