@@ -7,17 +7,17 @@ import (
 // 是否打印sql日志 默认是
 var Echo = true
 
+func SetEcho(echo bool) {
+	Echo = echo
+}
+
 type Session struct {
-	DB *sql.DB
+	*sql.DB
 }
 
 type TxSession struct {
 	DB *sql.DB
 	TX *sql.Tx
-}
-
-func SetEcho(echo bool) {
-	Echo = echo
 }
 
 func Open(driverName, dataSourceName string) (*Session, error) {
