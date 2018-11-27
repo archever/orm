@@ -2,6 +2,7 @@ package orm
 
 import (
 	"database/sql"
+	"fmt"
 )
 
 // 是否打印sql日志 默认是
@@ -59,11 +60,11 @@ func (s *Session) Exec(sql string, arg ...interface{}) *stmt {
 	return ret
 }
 
-func (s *Session) Table(t string) *action {
+func (s *Session) Table(t string, arg ...interface{}) *action {
 	ret := new(action)
 	ret.db = s.DB
 	ret.tx = nil
-	ret.table = t
+	ret.table = fmt.Sprintf(t, arg...)
 	return ret
 }
 
@@ -77,11 +78,11 @@ func (s *TxSession) Exec(sql string, arg ...interface{}) *stmt {
 	return ret
 }
 
-func (s *TxSession) Table(t string) *action {
+func (s *TxSession) Table(t string, arg ...interface{}) *action {
 	ret := new(action)
 	ret.db = s.DB
 	ret.tx = s.TX
-	ret.table = t
+	ret.table = fmt.Sprintf(t, arg...)
 	return ret
 }
 
