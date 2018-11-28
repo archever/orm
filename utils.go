@@ -80,6 +80,7 @@ func _sqlInsertMany(table string, action string, rows interface{}) (string, []in
 	}
 	init := false
 	keys := []string{}
+	wappedKeys := []string{}
 	insertData := []string{}
 
 	rv := reflect.ValueOf(rows)
@@ -96,15 +97,15 @@ func _sqlInsertMany(table string, action string, rows interface{}) (string, []in
 			// init keys
 			if !init {
 				for k := range value {
-					keys = append(keys, f.FieldWapper(k))
+					keys = append(keys, k)
+					wappedKeys = append(wappedKeys, f.FieldWapper(k))
 				}
 				init = true
 			}
 			argS := []string{}
 			for _, k := range keys {
-				v, _ := value[k]
 				argS = append(argS, "?")
-				args = append(args, v)
+				args = append(args, value[k])
 			}
 			insertData = append(insertData, fmt.Sprintf("(%s)", strings.Join(argS, ", ")))
 		}
@@ -113,7 +114,7 @@ func _sqlInsertMany(table string, action string, rows interface{}) (string, []in
 	}
 
 	sql = fmt.Sprintf("%s into %s(%s) values %s", action, f.FieldWapper(table),
-		strings.Join(keys, ", "),
+		strings.Join(wappedKeys, ", "),
 		strings.Join(insertData, ", "),
 	)
 	return sql, args, err
