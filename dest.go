@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-// UnMarshaler data to read in sql field
-type UnMarshaler interface {
-	UnMarshalSQL(*ScanRow) error
+// Unmarshaler data to read in sql field
+type Unmarshaler interface {
+	UnmarshalSQL(*ScanRow) error
 }
 
 // Marshaler data to store in sql field
@@ -381,8 +381,8 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 		if ele.Type().Kind() == reflect.Ptr {
 			ele.Set(reflect.New(ele.Type().Elem()))
 		}
-		if m, ok := ele.Interface().(UnMarshaler); ok {
-			err := m.UnMarshalSQL(data)
+		if m, ok := ele.Interface().(Unmarshaler); ok {
+			err := m.UnmarshalSQL(data)
 			if err == ErrNull {
 				ele.Set(reflect.Zero(ele.Type()))
 			} else if err != nil {
@@ -393,8 +393,8 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 			continue
 		}
 		if ele.CanAddr() {
-			if m, ok := ele.Addr().Interface().(UnMarshaler); ok {
-				err := m.UnMarshalSQL(data)
+			if m, ok := ele.Addr().Interface().(Unmarshaler); ok {
+				err := m.UnmarshalSQL(data)
 				if err == ErrNull {
 					ele.Set(reflect.Zero(ele.Type()))
 				} else if err != nil {

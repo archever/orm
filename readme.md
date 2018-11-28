@@ -93,7 +93,7 @@ func (t *MyType) MarshalSQL () (string, error) {
     ...
 }
 
-func (t *MyType) UnMarshalSQL (*orm.ScanRow) (error) {
+func (t *MyType) UnmarshalSQL (*orm.ScanRow) (error) {
     ...
 }
 

@@ -20,7 +20,7 @@ func (h hobby) MarshalSQL() (string, error) {
 	return strings.Join(h, ","), nil
 }
 
-func (h *hobby) UnMarshalSQL(raw *orm.ScanRow) error {
+func (h *hobby) UnmarshalSQL(raw *orm.ScanRow) error {
 	*h = strings.Split(raw.ToString(), ",")
 	return nil
 }
@@ -34,7 +34,7 @@ type Date struct {
 func (d Date) MarshalSQL() (string, error) {
 	return fmt.Sprintf("%04d-%02d-%02d", d.year, d.month, d.day), nil
 }
-func (d *Date) UnMarshalSQL(raw *orm.ScanRow) error {
+func (d *Date) UnmarshalSQL(raw *orm.ScanRow) error {
 	var month int
 	_, err := fmt.Sscanf(raw.ToString(), "%04d-%02d-%02d", &d.year, &month, &d.day)
 	d.month = time.Month(month)
