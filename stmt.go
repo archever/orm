@@ -3,10 +3,10 @@ package orm
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/archever/orm/f"
+	"github.com/archever/orm/logger"
 )
 
 type stmt struct {
@@ -73,7 +73,7 @@ func (a *stmt) finish() (string, []interface{}, error) {
 		}
 	}
 	if Echo {
-		log.Printf("sql: %s, %v", sqls, args)
+		logger.Info.Printf("sql: %s, %v", sqls, args)
 	}
 	return sqls, args, nil
 }
