@@ -13,6 +13,7 @@ import (
 type ScanRow struct {
 	Value  []byte          // 数据值
 	Column *sql.ColumnType // 数据名
+	Valid  bool            // 是否为空
 }
 
 // Scan fetch the sql data
@@ -29,16 +30,29 @@ func Scan(rows *sql.Rows) ([]map[string]*ScanRow, error) {
 	for rows.Next() {
 		ret := map[string]*ScanRow{}
 		scanI := make([]interface{}, len(cols))
-		scanV := make([][]byte, len(cols))
+		scanV := make([]interface{}, len(cols))
 		for i := range scanV {
 			scanI[i] = &scanV[i]
 		}
 		rows.Scan(scanI...)
 
 		for i := range cols {
+			v := []byte{}
+			isValid := true
+			if scanV[i] == nil {
+				isValid = false
+			} else {
+				switch d := scanV[i].(type) {
+				case []byte:
+					v = d
+				case int64:
+					v = []byte(strconv.Itoa(int(d)))
+				}
+			}
 			ret[cols[i].Name()] = &ScanRow{
-				Value:  scanV[i],
+				Value:  v,
 				Column: cols[i],
+				Valid:  isValid,
 			}
 		}
 		rets = append(rets, ret)

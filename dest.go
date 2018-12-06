@@ -405,7 +405,13 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 				continue
 			}
 		}
-
+		if ele.Type().Kind() == reflect.Ptr {
+			if !data.Valid {
+				ele.Set(reflect.Zero(ele.Type()))
+				return nil
+			}
+			ele = ele.Elem()
+		}
 		switch ele.Type().Kind() {
 		case reflect.String:
 			v := data.ToString()

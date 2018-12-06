@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/archever/orm"
+	"github.com/archever/orm/f"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -96,7 +97,7 @@ func insertData() {
 		Birth:  Date{1992, time.March, 13},
 		Hobby:  hobby{"coding,reading,hiking"},
 	}
-	row2 := orm.f.M{
+	row2 := f.M{
 		"name":   "archever2",
 		"gender": Male,
 		"birth":  Date{1992, time.March, 14},
