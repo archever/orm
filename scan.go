@@ -4,6 +4,7 @@ package orm
 
 import (
 	"database/sql"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -47,6 +48,8 @@ func Scan(rows *sql.Rows) ([]map[string]*ScanRow, error) {
 					v = d
 				case int64:
 					v = []byte(strconv.Itoa(int(d)))
+				default:
+					return rets, fmt.Errorf("%T not match", scanV[i])
 				}
 			}
 			ret[cols[i].Name()] = &ScanRow{
