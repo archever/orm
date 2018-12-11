@@ -78,3 +78,12 @@ tx.Table("t").Select().Do()
 tx.Commit()
 tx.RollBack()
 ```
+
+### set logger
+here are two loggers, you can modify them, if you need
+* orm.Log
+* orm.Debug
+
+```golang
+orm.Debug.SetOutput(ioutil.Discard)
+```
