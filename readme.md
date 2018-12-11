@@ -60,7 +60,7 @@ func (t *MyType) UnmarshalSQL (*orm.ScanRow) (error) {
 }
 
 // use MyType in select or fiter or insert sqls
-s.Table("t").Insert(orm.f.M{
+s.Table("t").Insert(orm.M{
     "column": MyType{}
 }).Do()
 s.Table("t").Select().Where("a=?", MyType{...})
