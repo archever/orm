@@ -1,45 +1,47 @@
 package orm
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"reflect"
 	"strings"
-
-	"github.com/archever/orm/f"
-	"github.com/archever/orm/logger"
 )
 
-type stmt struct {
-	db       *sql.DB
-	tx       *sql.Tx
-	sql      string
-	table    string
-	args     []interface{}
-	limit    int
-	orderby  []string
-	groupby  []string
-	offset   int
-	isOffset bool
-	filters  []*f.FilterItem
-	err      error
+type Stmt struct {
+	db      *sql.DB
+	tx      *sql.Tx
+	sql     string
+	table   string
+	args    []interface{}
+	ctx     context.Context
+	limit   int
+	orderby []string
+	groupby []string
+	offset  int
+	filters []*FilterItem
+	err     error
 }
 
-func (a *stmt) isTx() bool {
+func (a *Stmt) isTx() bool {
 	if a.tx == nil {
 		return false
 	}
 	return true
 }
 
-func (a *stmt) finish() (string, []interface{}, error) {
+func (a *Stmt) finish() (string, []interface{}, error) {
 	if a.err != nil {
 		return "", nil, a.err
 	}
+	if a.ctx == nil {
+		a.ctx = context.TODO()
+	}
 	sqls := a.sql
 	rawArgs := a.args[:]
-	args := []interface{}{}
+	var args []interface{}
 	if len(a.filters) != 0 {
-		filter := f.And(a.filters...)
+		filter := And(a.filters...)
 		sqls += " where " + filter.Where
 		rawArgs = append(rawArgs, filter.Args...)
 	}
@@ -58,8 +60,8 @@ func (a *stmt) finish() (string, []interface{}, error) {
 		rawArgs = append(rawArgs, a.offset)
 	}
 	for _, i := range rawArgs {
-		m := ITOMarshaler(i)
-		if m != nil {
+		m, ok := ITOMarshaler(reflect.ValueOf(&i))
+		if ok {
 			data, err := m.MarshalSQL()
 			if err == ErrNull {
 				args = append(args, nil)
@@ -72,14 +74,17 @@ func (a *stmt) finish() (string, []interface{}, error) {
 			args = append(args, i)
 		}
 	}
-	if Echo {
-		logger.Info.Printf("sql: %s, %v", sqls, args)
-	}
+	Log.Printf("%s; %v", sqls, args)
 	return sqls, args, nil
 }
 
+func (a *Stmt) Ctx(ctx context.Context) *Stmt {
+	a.ctx = ctx
+	return a
+}
+
 // SQL return the sql info for testing
-func (a *stmt) SQL() (string, []interface{}, error) {
+func (a *Stmt) SQL() (string, []interface{}, error) {
 	sqls, args, err := a.finish()
 	if err != nil {
 		return "", nil, err
@@ -87,7 +92,7 @@ func (a *stmt) SQL() (string, []interface{}, error) {
 	return sqls, args, nil
 }
 
-func (a *stmt) MustDo() (rowID, rowCount int64) {
+func (a *Stmt) MustDo() (rowID, rowCount int64) {
 	rowID, rowCount, err := a.Do()
 	if err != nil {
 		panic(err)
@@ -95,31 +100,31 @@ func (a *stmt) MustDo() (rowID, rowCount int64) {
 	return rowID, rowCount
 }
 
-func (a *stmt) MustGet(dest interface{}) {
+func (a *Stmt) MustGet(dest interface{}) {
 	err := a.Get(dest)
-	if err != nil && err != ErrNotFund {
+	if err != nil {
 		panic(err)
 	}
 }
 
-func (a *stmt) MustOne(dest interface{}) {
+func (a *Stmt) MustOne(dest interface{}) {
 	err := a.One(dest)
-	if err != nil && err != ErrNotFund {
+	if err != nil {
 		panic(err)
 	}
 }
 
 // Do executing sql
-func (a *stmt) Do() (rowID, rowCount int64, err error) {
+func (a *Stmt) Do() (rowID, rowCount int64, err error) {
 	sqls, args, err := a.finish()
 	if err != nil {
 		return 0, 0, err
 	}
 	var res sql.Result
 	if a.isTx() {
-		res, err = a.tx.Exec(sqls, args...)
+		res, err = a.tx.ExecContext(a.ctx, sqls, args...)
 	} else {
-		res, err = a.db.Exec(sqls, args...)
+		res, err = a.db.ExecContext(a.ctx, sqls, args...)
 	}
 	if err != nil {
 		return 0, 0, err
@@ -135,7 +140,7 @@ func (a *stmt) Do() (rowID, rowCount int64, err error) {
 	return id, count, nil
 }
 
-func (a *stmt) Count() (int64, error) {
+func (a *Stmt) Count() (int64, error) {
 	tmp := a.sql
 	defer func() {
 		a.sql = tmp
@@ -145,12 +150,12 @@ func (a *stmt) Count() (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	dest := f.M{}
+	dest := M{}
 	var rows *sql.Rows
 	if a.isTx() {
-		rows, err = a.tx.Query(sqls, args...)
+		rows, err = a.tx.QueryContext(a.ctx, sqls, args...)
 	} else {
-		rows, err = a.db.Query(sqls, args...)
+		rows, err = a.db.QueryContext(a.ctx, sqls, args...)
 	}
 	if err != nil {
 		return 0, err
@@ -165,16 +170,16 @@ func (a *stmt) Count() (int64, error) {
 }
 
 // Get executing sql and fetch the data and restore to dest
-func (a *stmt) Get(dest interface{}) error {
+func (a *Stmt) Get(dest interface{}) error {
 	sqls, args, err := a.finish()
 	if err != nil {
 		return err
 	}
 	var rows *sql.Rows
 	if a.isTx() {
-		rows, err = a.tx.Query(sqls, args...)
+		rows, err = a.tx.QueryContext(a.ctx, sqls, args...)
 	} else {
-		rows, err = a.db.Query(sqls, args...)
+		rows, err = a.db.QueryContext(a.ctx, sqls, args...)
 	}
 	if err != nil {
 		return err
@@ -184,7 +189,7 @@ func (a *stmt) Get(dest interface{}) error {
 }
 
 // One executing sql fetch one data and restore to dest
-func (a *stmt) One(dest interface{}) error {
+func (a *Stmt) One(dest interface{}) error {
 	a.limit = 1
 	sqls, args, err := a.finish()
 	if err != nil {
@@ -192,9 +197,9 @@ func (a *stmt) One(dest interface{}) error {
 	}
 	var rows *sql.Rows
 	if a.isTx() {
-		rows, err = a.tx.Query(sqls, args...)
+		rows, err = a.tx.QueryContext(a.ctx, sqls, args...)
 	} else {
-		rows, err = a.db.Query(sqls, args...)
+		rows, err = a.db.QueryContext(a.ctx, sqls, args...)
 	}
 	if err != nil {
 		return err
@@ -204,21 +209,22 @@ func (a *stmt) One(dest interface{}) error {
 }
 
 // Filter generate where condition
-func (a *stmt) Filter(filters ...*f.FilterItem) *stmt {
-	filter := f.And(filters...)
+func (a *Stmt) Filter(filters ...*FilterItem) *Stmt {
+	filter := And(filters...)
 	a.filters = append(a.filters, filter)
 	return a
 }
 
 // Where generate where condition
-func (a *stmt) Where(cond string, arg ...interface{}) *stmt {
-	filter := f.S(cond, arg...)
+func (a *Stmt) Where(cond string, arg ...interface{}) *Stmt {
+	filter := FilterS(cond, arg...)
 	a.filters = append(a.filters, filter)
 	return a
 }
 
 // OrderBy set sql order by
-func (a *stmt) OrderBy(field string, reverse bool) *stmt {
+func (a *Stmt) OrderBy(field string, reverse bool) *Stmt {
+	field = FieldWapper(field)
 	if reverse {
 		field += " desc"
 	}
@@ -227,25 +233,28 @@ func (a *stmt) OrderBy(field string, reverse bool) *stmt {
 }
 
 // GroupBy set sql group by
-func (a *stmt) GroupBy(o ...string) *stmt {
+func (a *Stmt) GroupBy(o ...string) *Stmt {
+	for i := range o {
+		o[i] = FieldWapper(o[i])
+	}
 	a.groupby = append(a.groupby, strings.Join(o, ", "))
 	return a
 }
 
 // Limit set sql limit
-func (a *stmt) Limit(l int) *stmt {
+func (a *Stmt) Limit(l int) *Stmt {
 	a.limit = l
 	return a
 }
 
 // Offset set sql offset
-func (a *stmt) Offset(o int) *stmt {
+func (a *Stmt) Offset(o int) *Stmt {
 	a.offset = o
 	return a
 }
 
 // Page set sql limit and offset
-func (a *stmt) Page(page, psize int) *stmt {
+func (a *Stmt) Page(page, psize int) *Stmt {
 	if page < 1 {
 		page = 1
 	}

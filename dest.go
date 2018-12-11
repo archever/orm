@@ -1,5 +1,3 @@
-// dest help to set data to destination pointer
-
 package orm
 
 import (
@@ -20,20 +18,57 @@ type Marshaler interface {
 	MarshalSQL() (string, error)
 }
 
-// ITOMarshaler TOOD: 这个方法不能判断指针接受者
-func ITOMarshaler(m interface{}) Marshaler {
-	var ret Marshaler
-	if mi, ok := m.(Marshaler); ok {
-		ret = mi
+// ITOMarshaler 判断 是否实现 Marshaler 接口
+func ITOMarshaler(v reflect.Value) (Marshaler, bool) {
+	var m Marshaler
+	var ok bool
+	if v.CanAddr() {
+		m, ok = v.Addr().Interface().(Marshaler)
 	}
-	return ret
+	if !ok {
+		m, ok = v.Interface().(Marshaler)
+	}
+	vl := v
+	for !ok {
+		if vl.Type().Kind() == reflect.Ptr && !vl.IsNil() {
+			vl = vl.Elem()
+			m, ok = vl.Interface().(Marshaler)
+		} else {
+			ok = false
+			break
+		}
+	}
+	return m, ok
+}
+
+// ITOUnmarshaler 判断 是否实现 Unmarshaler 接口
+func ITOUnmarshaler(v reflect.Value) (Unmarshaler, bool) {
+	var m Unmarshaler
+	var ok bool
+	if v.CanAddr() {
+		m, ok = v.Addr().Interface().(Unmarshaler)
+	}
+	if !ok {
+		m, ok = v.Interface().(Unmarshaler)
+	}
+	vl := v
+	for !ok {
+		if vl.Type().Kind() == reflect.Ptr && !vl.IsNil() {
+			vl = vl.Elem()
+			m, ok = vl.Interface().(Unmarshaler)
+		} else {
+			ok = false
+			break
+		}
+	}
+	return m, ok
 }
 
 func ScanQueryRows(dest interface{}, rows *sql.Rows) error {
 	var err error
 	rv := reflect.ValueOf(dest)
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
-		return ErrDestType
+		return fmt.Errorf("dest type not match: %T", dest)
 	}
 	// fetch data
 	reses, err := Scan(rows)
@@ -46,17 +81,15 @@ func ScanQueryRows(dest interface{}, rows *sql.Rows) error {
 	rv = indirect(rv)
 	switch rv.Kind() {
 	case reflect.Interface:
-		// assert not interface method
-		// set default value &[]map[string]interface{}{}
 		if rv.NumMethod() == 0 {
-			rv = reflect.ValueOf([]map[string]interface{}{})
+			rv = reflect.ValueOf([]M{})
 			rv, err := ToSlice(reses, rv)
 			if err != nil {
 				return err
 			}
 			reflect.ValueOf(dest).Elem().Set(rv)
 		} else {
-			return ErrDestType
+			return fmt.Errorf("dest type not match")
 		}
 	case reflect.Array:
 		rv, err = ToArray(reses, rv)
@@ -71,7 +104,7 @@ func ScanQueryRows(dest interface{}, rows *sql.Rows) error {
 		}
 		reflect.ValueOf(dest).Elem().Set(rv)
 	default:
-		return ErrDestType
+		return fmt.Errorf("dest type not match: %T", dest)
 	}
 	return nil
 }
@@ -80,7 +113,7 @@ func ScanQueryOne(dest interface{}, rows *sql.Rows) error {
 	var err error
 	rv := reflect.ValueOf(dest)
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
-		return ErrDestType
+		return fmt.Errorf("dest type not match: %T", dest)
 	}
 	// fetch one data
 	reses, err := Scan(rows)
@@ -96,7 +129,7 @@ func ScanQueryOne(dest interface{}, rows *sql.Rows) error {
 	switch rv.Kind() {
 	case reflect.Interface:
 		if rv.NumMethod() == 0 {
-			rv = reflect.ValueOf(map[string]interface{}{})
+			rv = reflect.ValueOf(M{})
 			err := ToMap(res, rv)
 			if err != nil {
 				return err
@@ -109,12 +142,12 @@ func ScanQueryOne(dest interface{}, rows *sql.Rows) error {
 	case reflect.Struct:
 		err = ToStruct(res, rv)
 	default:
-		return ErrDestType
+		return fmt.Errorf("dest type not match: %T", dest)
 	}
 	return err
 }
 
-func getFieldName(field reflect.StructField) (string, bool, bool) {
+func GetFieldName(field reflect.StructField) (string, bool, bool) {
 	fieldName, ok := field.Tag.Lookup("column")
 	isOmitempty := false
 	isIgnore := false
@@ -233,7 +266,7 @@ func ToSlice(reses []map[string]*ScanRow, rv reflect.Value) (reflect.Value, erro
 			}
 		}
 	default:
-		return rv, ErrDestType
+		return rv, fmt.Errorf("dest type not match")
 	}
 	return rv, nil
 }
@@ -289,7 +322,7 @@ func ToArray(reses []map[string]*ScanRow, rv reflect.Value) (reflect.Value, erro
 			index++
 		}
 	default:
-		return rv, ErrDestType
+		return rv, fmt.Errorf("dest type not match")
 	}
 	return rv, nil
 }
@@ -302,59 +335,37 @@ func ToMap(row map[string]*ScanRow, rv reflect.Value) error {
 		rv = reflect.MakeMap(rv.Type())
 	}
 	if rv.Type().Key().Kind() != reflect.String {
-		return ErrDestType
+		return fmt.Errorf("dest type not match")
 	}
-	switch rv.Type().Elem().Kind() {
-	case reflect.Interface:
-		for k, v := range row {
-			data, err := v.ToValue()
-			if err != nil {
-				return err
-			}
+	for k, v := range row {
+		var data interface{}
+		var err error
+		switch rv.Type().Elem().Kind() {
+		case reflect.Interface:
+			data, err = v.ToValue()
+		case reflect.String:
+			data, err = v.ToString()
+		case reflect.Int64:
+			data, err = v.ToInt64()
+		case reflect.Uint8:
+			data, err = v.ToByte()
+		case reflect.Int:
+			data, err = v.ToInt()
+		case reflect.Int8:
+			data, err = v.ToInt8()
+		case reflect.Bool:
+			data, err = v.ToBool()
+		default:
+			return fmt.Errorf("dest type not match")
+		}
+		if err == ErrNull {
+			rv.SetMapIndex(reflect.ValueOf(k), reflect.Zero(rv.Type().Elem()))
+			continue
+		} else if err != nil {
+			return err
+		} else {
 			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(data))
 		}
-	case reflect.String:
-		for k, v := range row {
-			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v.ToString()))
-		}
-	case reflect.Int64:
-		for k, v := range row {
-			data, err := v.ToInt64()
-			if err != nil {
-				return err
-			}
-			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(data))
-		}
-	case reflect.Uint8:
-		for k, v := range row {
-			data, err := v.ToByte()
-			if err != nil {
-				return err
-			}
-			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(data))
-		}
-	case reflect.Int:
-		for k, v := range row {
-			data, err := v.ToInt()
-			if err != nil {
-				return err
-			}
-			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(data))
-		}
-	case reflect.Int8:
-		for k, v := range row {
-			data, err := v.ToInt8()
-			if err != nil {
-				return err
-			}
-			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(data))
-		}
-	case reflect.Bool:
-		for k, v := range row {
-			rv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v.ToBool()))
-		}
-	default:
-		return ErrDestType
 	}
 	if r0.IsNil() {
 		r0.Set(rv)
@@ -366,7 +377,7 @@ func ToMap(row map[string]*ScanRow, rv reflect.Value) error {
 func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 	for i := 0; i < rv.NumField(); i++ {
 		ele := rv.Field(i)
-		fieldName, _, isIgnore := getFieldName(rv.Type().Field(i))
+		fieldName, _, isIgnore := GetFieldName(rv.Type().Field(i))
 		if isIgnore {
 			continue
 		}
@@ -378,54 +389,39 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 		if data, ok = row[fieldName]; !ok {
 			continue
 		}
-		if ele.Type().Kind() == reflect.Ptr {
+		if ele.Type().Kind() == reflect.Ptr && ele.IsNil() {
+			if !data.Valid {
+				ele.Set(reflect.Zero(ele.Type()))
+				continue
+			}
 			ele.Set(reflect.New(ele.Type().Elem()))
+			ele = ele.Elem()
 		}
-		if m, ok := ele.Interface().(Unmarshaler); ok {
+		if m, ok := ITOUnmarshaler(ele); ok {
 			err := m.UnmarshalSQL(data)
 			if err == ErrNull {
 				ele.Set(reflect.Zero(ele.Type()))
 			} else if err != nil {
 				return err
 			} else {
-				ele.Set(reflect.ValueOf(m))
+				ele.Set(reflect.ValueOf(m).Elem())
 			}
 			continue
 		}
-		if ele.CanAddr() {
-			if m, ok := ele.Addr().Interface().(Unmarshaler); ok {
-				err := m.UnmarshalSQL(data)
-				if err == ErrNull {
-					ele.Set(reflect.Zero(ele.Type()))
-				} else if err != nil {
-					return err
-				} else {
-					ele.Set(reflect.ValueOf(m).Elem())
-				}
-				continue
-			}
-		}
-		if ele.Type().Kind() == reflect.Ptr {
-			if !data.Valid {
-				ele.Set(reflect.Zero(ele.Type()))
-				return nil
-			}
-			ele = ele.Elem()
-		}
 		switch ele.Type().Kind() {
 		case reflect.String:
-			v := data.ToString()
+			v := data.Value
 			rv := reflect.ValueOf(v)
 			if ele.Type().ConvertibleTo(rv.Type()) {
 				rv = rv.Convert(ele.Type())
 			}
 			if !ele.Type().AssignableTo(rv.Type()) {
-				return ErrNotAssignable
+				return fmt.Errorf("%T not assignable to %T", ele.Interface(), rv.Interface())
 			}
 			ele.Set(rv)
 		case reflect.Float64:
 			v, err := data.ToFloat64()
-			if err != nil {
+			if err != nil && err != ErrNull {
 				return err
 			}
 			rv := reflect.ValueOf(v)
@@ -433,12 +429,12 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 				rv = rv.Convert(ele.Type())
 			}
 			if !ele.Type().AssignableTo(rv.Type()) {
-				return ErrNotAssignable
+				return fmt.Errorf("%T not assignable to %T", ele.Interface(), rv.Interface())
 			}
 			ele.Set(rv)
 		case reflect.Int64:
 			v, err := data.ToInt64()
-			if err != nil {
+			if err != nil && err != ErrNull {
 				return err
 			}
 			rv := reflect.ValueOf(v)
@@ -446,12 +442,12 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 				rv = rv.Convert(ele.Type())
 			}
 			if !ele.Type().AssignableTo(rv.Type()) {
-				return ErrNotAssignable
+				return fmt.Errorf("%T not assignable to %T", ele.Interface(), rv.Interface())
 			}
 			ele.Set(rv)
 		case reflect.Int:
 			v, err := data.ToInt()
-			if err != nil {
+			if err != nil && err != ErrNull {
 				return err
 			}
 			rv := reflect.ValueOf(v)
@@ -459,12 +455,12 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 				rv = rv.Convert(ele.Type())
 			}
 			if !ele.Type().AssignableTo(rv.Type()) {
-				return ErrNotAssignable
+				return fmt.Errorf("%T not assignable to %T", ele.Interface(), rv.Interface())
 			}
 			ele.Set(rv)
 		case reflect.Int8:
 			v, err := data.ToInt8()
-			if err != nil {
+			if err != nil && err != ErrNull {
 				return err
 			}
 			rv := reflect.ValueOf(v)
@@ -472,12 +468,12 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 				rv = rv.Convert(ele.Type())
 			}
 			if !ele.Type().AssignableTo(rv.Type()) {
-				return ErrNotAssignable
+				return fmt.Errorf("%T not assignable to %T", ele.Interface(), rv.Interface())
 			}
 			ele.Set(rv)
 		case reflect.Uint8:
 			v, err := data.ToByte()
-			if err != nil {
+			if err != nil && err != ErrNull {
 				return err
 			}
 			rv := reflect.ValueOf(v)
@@ -485,46 +481,48 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 				rv = rv.Convert(ele.Type())
 			}
 			if !ele.Type().AssignableTo(rv.Type()) {
-				return ErrNotAssignable
+				return fmt.Errorf("%T not assignable to %T", ele.Interface(), rv.Interface())
 			}
 			ele.Set(rv)
 		case reflect.Bool:
-			v := data.ToBool()
+			v, _ := data.ToBool()
 			rv := reflect.ValueOf(v)
 			if ele.Type().ConvertibleTo(rv.Type()) {
 				rv = rv.Convert(ele.Type())
 			}
 			if !ele.Type().AssignableTo(rv.Type()) {
-				return ErrNotAssignable
+				return fmt.Errorf("%T not assignable to %T", ele.Interface(), rv.Interface())
 			}
 			ele.Set(rv)
 		case reflect.Ptr, reflect.Struct, reflect.Slice:
-			// if ele.Type().Kind() == reflect.Ptr {
-			// 	ele.Set(reflect.New(ele.Type().Elem()))
-			// 	ele = ele.Elem()
-			// }
+			if ele.Type().Kind() == reflect.Ptr {
+				ele.Set(reflect.New(ele.Type().Elem()))
+				ele = ele.Elem()
+			}
 			switch ele.Interface().(type) {
 			case time.Time:
 				v, err := data.ToTime()
-				if err != nil {
+				if err == ErrNull {
 					ele.Set(reflect.Zero(ele.Type()))
+					continue
+				} else if err != nil {
+					return err
 				}
-				ele.Set(reflect.ValueOf(v))
-			case *time.Time:
-				v, err := data.ToTime()
-				if err != nil {
-					ele.Set(reflect.Zero(ele.Type()))
-				} else {
-					ele.Set(reflect.New(ele.Type().Elem()))
-					ele.Elem().Set(reflect.ValueOf(v))
-				}
+				ele.Set(reflect.ValueOf(*v))
 			case []byte:
-				rv := reflect.ValueOf(data.Value)
+				v, err := data.ToBytes()
+				if err == ErrNull {
+					ele.Set(reflect.Zero(ele.Type()))
+					continue
+				} else if err != nil {
+					return err
+				}
+				rv := reflect.ValueOf(v)
 				if ele.Type().ConvertibleTo(rv.Type()) {
 					rv = rv.Convert(ele.Type())
 				}
 				if !ele.Type().AssignableTo(rv.Type()) {
-					return ErrNotAssignable
+					return fmt.Errorf("%T not assignable to %T", ele.Interface(), rv.Interface())
 				}
 				ele.Set(rv)
 			default:
@@ -540,15 +538,22 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 // IToMap interface to map
 func IToMap(v reflect.Value) (map[string]interface{}, error) {
 	ret := map[string]interface{}{}
+	// isPtr := false
+	rv := v
 	if v.Type().Kind() == reflect.Ptr {
-		v = v.Elem()
+		// isPtr = true
+		rv = v.Elem()
 	}
-	switch v.Type().Kind() {
+	switch rv.Type().Kind() {
 	case reflect.Map:
-		keys := v.MapKeys()
+		if rv.Len() == 0 {
+			return nil, fmt.Errorf("save empty data")
+		}
+		keys := rv.MapKeys()
 		for _, k := range keys {
-			data := v.MapIndex(k).Interface()
-			if m, ok := data.(Marshaler); ok {
+			vi := rv.MapIndex(k)
+			data := vi.Interface()
+			if m, ok := ITOMarshaler(vi); ok {
 				var err error
 				data, err = m.MarshalSQL()
 				if err == ErrNull {
@@ -560,10 +565,15 @@ func IToMap(v reflect.Value) (map[string]interface{}, error) {
 			ret[k.String()] = data
 		}
 	case reflect.Struct:
-		for i := 0; i < v.NumField(); i++ {
-			field := v.Type().Field(i)
-			data := v.Field(i).Interface()
-			if m, ok := data.(Marshaler); ok {
+		for i := 0; i < rv.NumField(); i++ {
+			field := rv.Type().Field(i)
+			fieldName, isOmitempty, isIgnore := GetFieldName(field)
+			if isIgnore || (isOmitempty && IsEmptyValue(rv.Field(i))) {
+				continue
+			}
+			vi := rv.Field(i)
+			data := vi.Interface()
+			if m, ok := ITOMarshaler(vi); ok {
 				var err error
 				data, err = m.MarshalSQL()
 				if err == ErrNull {
@@ -572,19 +582,15 @@ func IToMap(v reflect.Value) (map[string]interface{}, error) {
 					return ret, err
 				}
 			}
-			fieldName, isOmitempty, isIgnore := getFieldName(field)
-			if isIgnore || (isOmitempty && isEmptyValue(v.Field(i))) {
-				continue
-			}
 			ret[fieldName] = data
 		}
 	default:
-		return ret, ErrDestType
+		return ret, fmt.Errorf("invalid data type: %T", rv.Interface())
 	}
 	return ret, nil
 }
 
-func isEmptyValue(v reflect.Value) bool {
+func IsEmptyValue(v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() == 0

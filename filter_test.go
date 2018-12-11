@@ -1,4 +1,4 @@
-package f
+package orm
 
 import (
 	"testing"
@@ -6,13 +6,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestS(t *testing.T) {
-	ret := S("a=?", "1")
+func TestFilterS(t *testing.T) {
+	ret := FilterS("a=?", "1")
 	assert.Equal(t, []interface{}{"1"}, ret.Args)
 	assert.Equal(t, "a=?", ret.Where)
-	ret = S("a=? and b>=?", "1", "2")
+	ret = FilterS("a=? and b>=?", "1", "2")
 	assert.Equal(t, []interface{}{"1", "2"}, ret.Args)
 	assert.Equal(t, "a=? and b>=?", ret.Where)
+}
+
+func TestIsNull(t *testing.T) {
+	ret := IsNull("a")
+	assert.Nil(t, ret.Args)
+	assert.Equal(t, "`a` is null", ret.Where)
+}
+
+func TestIsNotNull(t *testing.T) {
+	ret := IsNotNull("a")
+	assert.Nil(t, ret.Args)
+	assert.Equal(t, "`a` is not null", ret.Where)
 }
 
 func TestEqual(t *testing.T) {
@@ -69,6 +81,12 @@ func TestGt(t *testing.T) {
 	assert.Equal(t, "`a`>?", ret.Where)
 }
 
+func TestBetween(t *testing.T) {
+	ret := Between("a", 1, 2)
+	assert.Equal(t, []interface{}{1, 2}, ret.Args)
+	assert.Equal(t, "`a` between ? and ?", ret.Where)
+}
+
 func TestIn(t *testing.T) {
 	ret := In("a", []string{"1", "2"})
 	assert.Equal(t, []interface{}{"1", "2"}, ret.Args)
@@ -100,16 +118,16 @@ func TestNotLike(t *testing.T) {
 }
 
 func TestAnd(t *testing.T) {
-	ret := And(S("a=?", 1), S("b=?", 2))
+	ret := And(FilterS("a=?", 1), FilterS("b=?", 2))
 	assert.Equal(t, []interface{}{1, 2}, ret.Args)
 	assert.Equal(t, "(a=? and b=?)", ret.Where)
-	ret = And(S("a=?", 1))
+	ret = And(FilterS("a=?", 1))
 	assert.Equal(t, []interface{}{1}, ret.Args)
 	assert.Equal(t, "a=?", ret.Where)
 }
 
 func TestOr(t *testing.T) {
-	ret := Or(S("a=?", 1), S("b=?", 2))
+	ret := Or(FilterS("a=?", 1), FilterS("b=?", 2))
 	assert.Equal(t, []interface{}{1, 2}, ret.Args)
 	assert.Equal(t, "(a=? or b=?)", ret.Where)
 }

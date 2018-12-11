@@ -1,10 +1,8 @@
-// scan countians fetching sql data method and data type convert
-
 package orm
 
 import (
 	"database/sql"
-	"fmt"
+	"encoding/json"
 	"strconv"
 	"strings"
 	"time"
@@ -12,9 +10,9 @@ import (
 
 // ScanRow retore the sql result
 type ScanRow struct {
-	Value  []byte          // 数据值
-	Column *sql.ColumnType // 数据名
-	Valid  bool            // 是否为空
+	Value  string          // column value
+	Column *sql.ColumnType // column info
+	Valid  bool            // whether NULL
 }
 
 // Scan fetch the sql data
@@ -31,26 +29,19 @@ func Scan(rows *sql.Rows) ([]map[string]*ScanRow, error) {
 	for rows.Next() {
 		ret := map[string]*ScanRow{}
 		scanI := make([]interface{}, len(cols))
-		scanV := make([]interface{}, len(cols))
+		scanV := make([][]byte, len(cols))
 		for i := range scanV {
 			scanI[i] = &scanV[i]
 		}
 		rows.Scan(scanI...)
 
 		for i := range cols {
-			v := []byte{}
+			v := ""
 			isValid := true
 			if scanV[i] == nil {
 				isValid = false
 			} else {
-				switch d := scanV[i].(type) {
-				case []byte:
-					v = d
-				case int64:
-					v = []byte(strconv.Itoa(int(d)))
-				default:
-					return rets, fmt.Errorf("%T not match", scanV[i])
-				}
+				v = string(scanV[i])
 			}
 			ret[cols[i].Name()] = &ScanRow{
 				Value:  v,
@@ -60,9 +51,6 @@ func Scan(rows *sql.Rows) ([]map[string]*ScanRow, error) {
 		}
 		rets = append(rets, ret)
 	}
-	if len(rets) == 0 {
-		return rets, ErrNotFund
-	}
 	return rets, nil
 }
 
@@ -71,109 +59,138 @@ func (r *ScanRow) ToValue() (interface{}, error) {
 	var ret interface{}
 	var err error
 	switch r.Column.DatabaseTypeName() {
-	case "INT", "SMALLINT", "TINYINT", "BIGINT":
+	case "INT", "SMALLINT", "TINYINT":
+		ret, err = r.ToInt()
+	case "BIGINT":
 		ret, err = r.ToInt64()
-	case "DATETIME", "TIMESTAMP", "TIME":
+	case "FLOAT", "DECIMAL":
+		ret, err = r.ToFloat64()
+	case "DATETIME", "TIMESTAMP", "TIME", "DATE":
 		ret, err = r.ToTime()
-	case "DATE":
-		ret, err = r.ToDateTime()
 	case "VARCHAR", "CHAR", "TEXT":
-		ret = r.ToString()
+		ret, err = r.ToString()
 	case "BLOB":
-		ret = r.Value
+		ret, err = r.ToBytes()
 	default:
-		ret = r.ToString()
+		Debug.Printf("unknown column: %s", r.Column.DatabaseTypeName())
+		ret, err = r.ToString()
 	}
 	return ret, err
 }
 
-// ToString return the string value
-func (r *ScanRow) ToString() string {
-	return string(r.Value)
+// String string
+func (r *ScanRow) String() string {
+	return r.Value
 }
 
-// ToInt64 return the int64 value
+// ToString string
+func (r *ScanRow) ToString() (string, error) {
+	if !r.Valid {
+		return "", ErrNull
+	}
+	return r.Value, nil
+}
+
+// ToBytes []byte
+func (r *ScanRow) ToBytes() ([]byte, error) {
+	if !r.Valid {
+		return nil, ErrNull
+	}
+	return []byte(r.Value), nil
+}
+
+// ToInt64 int64
 func (r *ScanRow) ToInt64() (int64, error) {
-	if r.ToString() == "" {
-		return 0, nil
+	if !r.Valid {
+		return 0, ErrNull
 	}
-	v, err := strconv.ParseInt(r.ToString(), 10, 64)
+	v, err := strconv.ParseInt(r.Value, 10, 64)
 	return v, err
 }
 
-// ToFloat64 return the float64 value
+// ToFloat64 float64
 func (r *ScanRow) ToFloat64() (float64, error) {
-	if r.ToString() == "" {
-		return 0, nil
+	if !r.Valid {
+		return 0, ErrNull
 	}
-	v, err := strconv.ParseFloat(r.ToString(), 64)
+	v, err := strconv.ParseFloat(r.Value, 64)
 	return v, err
 }
 
-// ToFloat32 return the float32 value
+// ToFloat32 float32
 func (r *ScanRow) ToFloat32() (float32, error) {
-	if r.ToString() == "" {
-		return 0, nil
+	if !r.Valid {
+		return 0, ErrNull
 	}
-	v, err := strconv.ParseFloat(r.ToString(), 32)
+	v, err := strconv.ParseFloat(r.Value, 32)
 	return float32(v), err
 }
 
-// ToInt return the int64 value
+// ToInt int
 func (r *ScanRow) ToInt() (int, error) {
-	if r.ToString() == "" {
-		return 0, nil
+	if !r.Valid {
+		return 0, ErrNull
 	}
-	v, err := strconv.Atoi(r.ToString())
+	v, err := strconv.Atoi(r.Value)
 	return v, err
 }
 
-// ToInt8 return the int64 value
+// ToInt8 int8
 func (r *ScanRow) ToInt8() (int8, error) {
-	if r.ToString() == "" {
-		return 0, nil
+	if !r.Valid {
+		return 0, ErrNull
 	}
-	v, err := strconv.Atoi(r.ToString())
+	v, err := strconv.Atoi(r.Value)
 	return int8(v), err
 }
 
-// ToByte return the int64 value
+// ToByte byte
 func (r *ScanRow) ToByte() (byte, error) {
-	if r.ToString() == "" {
-		return 0, nil
+	if !r.Valid {
+		return 0, ErrNull
 	}
-	v, err := strconv.Atoi(r.ToString())
+	v, err := strconv.Atoi(r.Value)
 	return byte(v), err
 }
 
-// ToBool return the bool value
-func (r *ScanRow) ToBool() bool {
-	switch strings.ToLower(r.ToString()) {
+// ToBool bool
+func (r *ScanRow) ToBool() (bool, error) {
+	if !r.Valid {
+		return false, ErrNull
+	}
+	switch strings.ToLower(r.Value) {
 	case "", "0", "false":
-		return false
+		return false, nil
 	default:
-		return true
+		return true, nil
 	}
 }
 
-// ToTime return the time value
-func (r *ScanRow) ToTime() (time.Time, error) {
-	var ret time.Time
-	strV := r.ToString()
-	if strV == "" {
-		return ret, nil
+// ToTime *time.Time
+func (r *ScanRow) ToTime() (*time.Time, error) {
+	if !r.Valid {
+		return nil, ErrNull
 	}
-	v, err := time.ParseInLocation("2006-01-02 15:04:05", r.ToString(), time.Now().Location())
-	return v, err
+	v, err := time.ParseInLocation("2006-01-02 15:04:05", r.Value, time.Now().Location())
+	if err == nil {
+		return &v, nil
+	}
+	v, err = time.ParseInLocation("2006-01-02", r.Value, time.Now().Location())
+	if err == nil {
+		return &v, nil
+	}
+	return nil, err
 }
 
-// ToDateTime return the time value
-func (r *ScanRow) ToDateTime() (time.Time, error) {
-	var ret time.Time
-	strV := r.ToString()
-	if strV == "" {
-		return ret, nil
+// ToJSON json
+func (r *ScanRow) ToJSON(dest interface{}) error {
+	if !r.Valid {
+		return ErrNull
 	}
-	v, err := time.ParseInLocation("2006-01-02", r.ToString(), time.Now().Location())
-	return v, err
+	body, err := r.ToBytes()
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(body, dest)
+	return err
 }

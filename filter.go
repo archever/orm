@@ -1,4 +1,4 @@
-package f
+package orm
 
 import (
 	"fmt"
@@ -24,7 +24,7 @@ func filter(o, field string, arg interface{}) *FilterItem {
 	}
 }
 
-func S(cond string, arg ...interface{}) *FilterItem {
+func FilterS(cond string, arg ...interface{}) *FilterItem {
 	return &FilterItem{
 		Where: fmt.Sprintf("%s", cond),
 		Args:  arg,
@@ -34,14 +34,12 @@ func S(cond string, arg ...interface{}) *FilterItem {
 func IsNull(field string) *FilterItem {
 	return &FilterItem{
 		Where: fmt.Sprintf("%s is null", FieldWapper(field)),
-		Args:  []interface{}{},
 	}
 }
 
 func IsNotNull(field string) *FilterItem {
 	return &FilterItem{
 		Where: fmt.Sprintf("%s is not null", FieldWapper(field)),
-		Args:  []interface{}{},
 	}
 }
 

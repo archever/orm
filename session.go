@@ -1,24 +1,19 @@
 package orm
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 )
 
-// 是否打印sql日志 默认是
-var Echo = true
-
-func SetEcho(echo bool) {
-	Echo = echo
-}
-
 type Session struct {
 	*sql.DB
+	Driver string
 }
 
 type TxSession struct {
-	DB *sql.DB
-	TX *sql.Tx
+	s  *Session
+	Tx *sql.Tx
 }
 
 func Open(driverName, dataSourceName string) (*Session, error) {
@@ -26,70 +21,85 @@ func Open(driverName, dataSourceName string) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Session{DB: db}, nil
+	return &Session{DB: db, Driver: driverName}, nil
 }
 
 func (s *Session) Begin() (*TxSession, error) {
-	var err error
-	ret := new(TxSession)
-	ret.DB = s.DB
-	ret.TX, err = s.DB.Begin()
+	tx, err := s.DB.Begin()
 	if err != nil {
 		return nil, err
 	}
-	return ret, err
+	return &TxSession{
+		s:  s,
+		Tx: tx,
+	}, nil
 }
 
 func (s *Session) MustBegin() *TxSession {
-	var err error
-	ret := new(TxSession)
-	ret.TX, err = s.DB.Begin()
+	ret, err := s.Begin()
 	if err != nil {
 		panic(err)
 	}
 	return ret
 }
 
-func (s *Session) Exec(sql string, arg ...interface{}) *stmt {
-	ret := new(stmt)
+func (s *Session) BeginTx(ctx context.Context, opts *sql.TxOptions) (*TxSession, error) {
+	tx, err := s.DB.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	return &TxSession{
+		s:  s,
+		Tx: tx,
+	}, nil
+}
+
+func (s *Session) MustBeginTx(ctx context.Context, opts *sql.TxOptions) *TxSession {
+	ret, err := s.BeginTx(ctx, opts)
+	if err != nil {
+		panic(err)
+	}
+	return ret
+}
+
+func (s *Session) Exec(sql string, arg ...interface{}) *Stmt {
+	ret := new(Stmt)
 	sql, args := sqlExec(sql, arg...)
 	ret.db = s.DB
-	ret.tx = nil
 	ret.sql = sql
 	ret.args = args
 	return ret
 }
 
-func (s *Session) Table(t string, arg ...interface{}) *action {
-	ret := new(action)
+func (s *Session) Table(t string, arg ...interface{}) *Action {
+	ret := new(Action)
 	ret.db = s.DB
-	ret.tx = nil
 	ret.table = fmt.Sprintf(t, arg...)
 	return ret
 }
 
-func (s *TxSession) Exec(sql string, arg ...interface{}) *stmt {
-	ret := new(stmt)
+func (s *TxSession) Exec(sql string, arg ...interface{}) *Stmt {
+	ret := new(Stmt)
 	sql, args := sqlExec(sql, arg...)
-	ret.db = s.DB
-	ret.tx = s.TX
+	ret.db = s.s.DB
+	ret.tx = s.Tx
 	ret.sql = sql
 	ret.args = args
 	return ret
 }
 
-func (s *TxSession) Table(t string, arg ...interface{}) *action {
-	ret := new(action)
-	ret.db = s.DB
-	ret.tx = s.TX
+func (s *TxSession) Table(t string, arg ...interface{}) *Action {
+	ret := new(Action)
+	ret.db = s.s.DB
+	ret.tx = s.Tx
 	ret.table = fmt.Sprintf(t, arg...)
 	return ret
 }
 
 func (s *TxSession) Commit() error {
-	return s.TX.Commit()
+	return s.Tx.Commit()
 }
 
 func (s *TxSession) RollBack() error {
-	return s.TX.Rollback()
+	return s.Tx.Rollback()
 }

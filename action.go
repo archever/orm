@@ -4,19 +4,20 @@ import (
 	"database/sql"
 )
 
-type action struct {
+type Action struct {
 	db    *sql.DB
 	tx    *sql.Tx
 	table string
 }
 
-func (o *action) errStmt(err error) *stmt {
-	return &stmt{
+func (o *Action) errStmt(err error) *Stmt {
+	return &Stmt{
 		err: err,
 	}
 }
-func (o *action) passStmt(sql string, args ...interface{}) *stmt {
-	return &stmt{
+
+func (o *Action) passStmt(sql string, args ...interface{}) *Stmt {
+	return &Stmt{
 		db:    o.db,
 		tx:    o.tx,
 		sql:   sql,
@@ -25,17 +26,17 @@ func (o *action) passStmt(sql string, args ...interface{}) *stmt {
 	}
 }
 
-func (o *action) Select(field ...string) *stmt {
+func (o *Action) Select(field ...string) *Stmt {
 	sql := sqlSelect(o.table, true, field...)
 	return o.passStmt(sql)
 }
 
-func (o *action) SelectS(field ...string) *stmt {
+func (o *Action) SelectS(field ...string) *Stmt {
 	sql := sqlSelect(o.table, false, field...)
 	return o.passStmt(sql)
 }
 
-func (o *action) Update(data map[string]interface{}) *stmt {
+func (o *Action) Update(data M) *Stmt {
 	sql, args, err := sqlUpdate(o.table, data)
 	if err != nil {
 		return o.errStmt(err)
@@ -43,7 +44,7 @@ func (o *action) Update(data map[string]interface{}) *stmt {
 	return o.passStmt(sql, args...)
 }
 
-func (o *action) Insert(row interface{}) *stmt {
+func (o *Action) Insert(row interface{}) *Stmt {
 	sql, args, err := sqlInsert(o.table, row)
 	if err != nil {
 		return o.errStmt(err)
@@ -51,7 +52,7 @@ func (o *action) Insert(row interface{}) *stmt {
 	return o.passStmt(sql, args...)
 }
 
-func (o *action) InsertMany(rows interface{}) *stmt {
+func (o *Action) InsertMany(rows interface{}) *Stmt {
 	sql, args, err := sqlInsertMany(o.table, rows)
 	if err != nil {
 		return o.errStmt(err)
@@ -59,7 +60,7 @@ func (o *action) InsertMany(rows interface{}) *stmt {
 	return o.passStmt(sql, args...)
 }
 
-func (o *action) Replace(row interface{}) *stmt {
+func (o *Action) Replace(row interface{}) *Stmt {
 	sql, args, err := sqlReplace(o.table, row)
 	if err != nil {
 		return o.errStmt(err)
@@ -67,7 +68,7 @@ func (o *action) Replace(row interface{}) *stmt {
 	return o.passStmt(sql, args...)
 }
 
-func (o *action) ReplaceMany(rows interface{}) *stmt {
+func (o *Action) ReplaceMany(rows interface{}) *Stmt {
 	sql, args, err := sqlReplaceMany(o.table, rows)
 	if err != nil {
 		return o.errStmt(err)
@@ -75,7 +76,7 @@ func (o *action) ReplaceMany(rows interface{}) *stmt {
 	return o.passStmt(sql, args...)
 }
 
-func (o *action) Delete() *stmt {
+func (o *Action) Delete() *Stmt {
 	sql, err := sqlDelete(o.table)
 	if err != nil {
 		return o.errStmt(err)
