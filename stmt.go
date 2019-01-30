@@ -169,6 +169,14 @@ func (a *Stmt) Count() (int64, error) {
 	return dest["cnt"].(int64), nil
 }
 
+func (a *Stmt) MustCount() int64 {
+	ret, err := a.Count()
+	if err != nil {
+		panic(err)
+	}
+	return ret
+}
+
 // Get executing sql and fetch the data and restore to dest
 func (a *Stmt) Get(dest interface{}) error {
 	sqls, args, err := a.finish()
@@ -210,6 +218,9 @@ func (a *Stmt) One(dest interface{}) error {
 
 // Filter generate where condition
 func (a *Stmt) Filter(filters ...*FilterItem) *Stmt {
+	if len(filters) == 0 {
+		return a
+	}
 	filter := And(filters...)
 	a.filters = append(a.filters, filter)
 	return a
