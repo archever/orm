@@ -149,6 +149,9 @@ func ScanQueryOne(dest interface{}, rows *sql.Rows) error {
 
 func GetFieldName(field reflect.StructField) (string, bool, bool) {
 	fieldName, ok := field.Tag.Lookup("column")
+	if !ok {
+		fieldName, ok = field.Tag.Lookup("json")
+	}
 	isOmitempty := false
 	isIgnore := false
 	// 判断是否是导出字段
