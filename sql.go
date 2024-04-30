@@ -8,59 +8,6 @@ import (
 	"strings"
 )
 
-func sqlSelect(table string, wapper bool, field ...string) string {
-	var sql string
-	if len(field) == 0 {
-		sql = "select *"
-	} else {
-		if wapper {
-			for i := range field {
-				field[i] = FieldWapper(field[i])
-			}
-		}
-		sql = "select " + strings.Join(field, ", ")
-	}
-	if table != "" {
-		sql += " from " + FieldWapper(table)
-	}
-	return sql
-}
-
-func sqlUpdate(table string, cols []FieldIfc) (string, []interface{}, error) {
-	var err error
-	var sql string
-	var set []string
-	var args []interface{}
-	if len(cols) == 0 {
-		err = fmt.Errorf("update empty data")
-		return sql, args, err
-	}
-	if table == "" {
-		err = fmt.Errorf("table not set")
-		return sql, args, err
-	}
-	// value, err := IToMap(reflect.ValueOf(data))
-	// if err != nil {
-	// 	return sql, args, err
-	// }
-	// for k := range value {
-	// 	set = append(set, k)
-	// }
-	for _, k := range cols {
-		if k.Dirty() {
-			set = append(set, fmt.Sprintf("%s=?", FieldWapper(k.ColName())))
-			args = append(args, k.Val())
-		}
-	}
-	// sort.Strings(set)
-	// for i, k := range set {
-	// 	set[i] = FieldWapper(k) + "=?"
-	// 	args = append(args, value[k])
-	// }
-	sql = "update " + FieldWapper(table) + " set " + strings.Join(set, ", ")
-	return sql, args, err
-}
-
 func _sqlInsert(table string, action string, row interface{}) (string, []interface{}, error) {
 	var err error
 	var sql string
@@ -81,11 +28,11 @@ func _sqlInsert(table string, action string, row interface{}) (string, []interfa
 	}
 	sort.Strings(keyS)
 	for i, k := range keyS {
-		keyS[i] = FieldWapper(k)
+		keyS[i] = FieldWrapper(k)
 		args = append(args, value[k])
 		argS = append(argS, "?")
 	}
-	sql = fmt.Sprintf("%s into %s(%s) values (%s)", action, FieldWapper(table),
+	sql = fmt.Sprintf("%s into %s(%s) values (%s)", action, FieldWrapper(table),
 		strings.Join(keyS, ", "),
 		strings.Join(argS, ", "),
 	)
@@ -129,7 +76,7 @@ func _sqlInsertMany(table string, action string, rows interface{}) (string, []in
 				}
 				sort.Strings(keys)
 				for _, k := range keys {
-					wappedKeys = append(wappedKeys, FieldWapper(k))
+					wappedKeys = append(wappedKeys, FieldWrapper(k))
 				}
 				init = true
 			} else {
@@ -153,7 +100,7 @@ func _sqlInsertMany(table string, action string, rows interface{}) (string, []in
 		err = fmt.Errorf("invalid data type: %T", rows)
 	}
 	if err == nil {
-		sql = fmt.Sprintf("%s into %s(%s) values %s", action, FieldWapper(table),
+		sql = fmt.Sprintf("%s into %s(%s) values %s", action, FieldWrapper(table),
 			strings.Join(wappedKeys, ", "),
 			strings.Join(insertData, ", "),
 		)
@@ -184,7 +131,7 @@ func sqlDelete(table string) (string, error) {
 		err = fmt.Errorf("table not set")
 		return sql, err
 	}
-	sql += " from " + FieldWapper(table)
+	sql += " from " + FieldWrapper(table)
 	return sql, err
 }
 

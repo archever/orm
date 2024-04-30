@@ -1,6 +1,7 @@
 package example
 
 import (
+	"context"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -34,42 +35,44 @@ func (s *userSchema) TableName() string {
 }
 
 func TestSelect(t *testing.T) {
+	ctx := context.Background()
 	db, mockDB, _ := sqlmock.New(
 		sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual),
 	)
 	s := &orm.Client{
 		DB: db,
 	}
-	mockDB.ExpectQuery("select `id`, `name` from `user` where `id`=? limit ?").WillReturnRows(
+	mockDB.ExpectQuery("SELECT `id`, `name` FROM `user` WHERE `id`=? LIMIT ?").WillReturnRows(
 		sqlmock.NewRows([]string{"id", "name"}).AddRow(10, "archever"),
 	)
 	var payload userPayload
-	err := s.Table(user).Select().Where(user.ID.Eq(10)).Get(&payload)
+	err := s.Table(user).Select().Where(user.ID.Eq(10)).TakePayload(ctx, &payload)
 	assert.NoError(t, err)
 	t.Logf("%v", payload)
 }
 
 func TestUpdate(t *testing.T) {
+	ctx := context.Background()
 	db, mockDB, _ := sqlmock.New(
 		sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual),
 	)
 	s := &orm.Client{
 		DB: db,
 	}
-	mockDB.ExpectQuery("select `id`, `name` from `user` where `id`=? limit ?").
+	mockDB.ExpectQuery("SELECT `id`, `name` FROM `user` WHERE `id`=? LIMIT ?").
 		WithArgs(10, 1).
 		WillReturnRows(
 			sqlmock.NewRows([]string{"id", "name"}).AddRow(10, "archever"),
 		)
-	mockDB.ExpectExec("update `user` set `name`=? where `id`=?").
+	mockDB.ExpectExec("UPDATE `user` SET `name`=? WHERE `id`=?").
 		WithArgs("name2", 10).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	var payload userPayload
-	err := s.Table(user).Select().Where(user.ID.Eq(10)).Get(&payload)
+	err := s.Table(user).Select().Where(user.ID.Eq(10)).TakePayload(ctx, &payload)
 	assert.NoError(t, err)
 	t.Logf("%v", payload)
 
 	payload.Name = "name2"
-	_, _, err = s.Table(user).Update(&payload).Where(user.ID.Eq(10)).Do()
+	err = s.Table(user).UpdatePayload(&payload).Where(user.ID.Eq(10)).Do(ctx)
 	assert.NoError(t, err)
 }

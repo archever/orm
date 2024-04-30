@@ -10,6 +10,7 @@ type PayloadBase struct {
 }
 
 func (p *PayloadBase) BindField(f FieldIfc) {
+	// TODO: check if field is already bound
 	p.binds = append(p.binds, f)
 }
 
