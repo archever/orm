@@ -71,10 +71,10 @@ func (s *Session) Exec(sql string, arg ...interface{}) *Stmt {
 	return ret
 }
 
-func (s *Session) Table(t string, arg ...interface{}) *Action {
+func (s *Session) Table(schema Schema) *Action {
 	ret := new(Action)
 	ret.db = s.DB
-	ret.table = fmt.Sprintf(t, arg...)
+	// ret.table = fmt.Sprintf(t, arg...)
 	return ret
 }
 

@@ -64,6 +64,34 @@ func ITOUnmarshaler(v reflect.Value) (Unmarshaler, bool) {
 	return m, ok
 }
 
+func ScanQueryFields(dest []FieldIfc, rows *sql.Rows) error {
+	fields, err := rows.Columns()
+	if err != nil {
+		return err
+	}
+	fieldMap := map[string]int{}
+	for i, field := range fields {
+		fieldMap[field] = i
+	}
+	values := make([]interface{}, len(fields))
+	for _, field := range dest {
+		index, ok := fieldMap[field.ColName()]
+		if !ok {
+			return fmt.Errorf("field not found: %s", field.ColName())
+		}
+		values[index] = field.RefVal()
+	}
+	for rows.Next() {
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+	}
+	for _, field := range dest {
+		field.setPreVal(field.Val())
+	}
+	return nil
+}
+
 func ScanQueryRows(dest interface{}, rows *sql.Rows) error {
 	var err error
 	rv := reflect.ValueOf(dest)

@@ -8,19 +8,28 @@ import (
 	"strings"
 )
 
+type M map[string]interface{}
+
+func FieldWapper(field string) string {
+	return fmt.Sprintf("%s%s%s", "`", field, "`")
+}
+
 type Stmt struct {
-	db      *sql.DB
-	tx      *sql.Tx
-	sql     string
-	table   string
-	args    []interface{}
-	ctx     context.Context
-	limit   int
-	orderby []string
-	groupby []string
-	offset  int
-	filters []*FilterItem
-	err     error
+	db  *sql.DB
+	tx  *sql.Tx
+	ctx context.Context
+	sql string
+
+	action       string // select, update, delete, insert, create
+	selectFields []FieldIfc
+	args         []any
+	table        Schema
+	conds        []Cond
+	orderby      []string
+	groupby      []string
+	limit        int
+	offset       int
+	err          error
 }
 
 func (a *Stmt) isTx() bool {
@@ -30,21 +39,42 @@ func (a *Stmt) isTx() bool {
 	return true
 }
 
-func (a *Stmt) finish() (string, []interface{}, error) {
+func (a *Stmt) complete() (string, []interface{}, error) {
 	if a.err != nil {
 		return "", nil, a.err
 	}
 	if a.ctx == nil {
-		a.ctx = context.TODO()
+		a.ctx = context.Background()
 	}
-	sqls := a.sql
+	var sqls string
+	switch a.action {
+	case "select":
+		cols := []string{}
+		for _, field := range a.selectFields {
+			cols = append(cols, FieldWapper(field.ColName()))
+		}
+		sqls = sqlSelect(a.table.TableName(), false, cols...)
+	case "update":
+		updateSql, args, err := sqlUpdate(a.table.TableName(), a.selectFields)
+		if err != nil {
+			return "", nil, err
+		}
+		sqls = updateSql
+		a.args = append(a.args, args...)
+	}
 	rawArgs := a.args[:]
 	var args []interface{}
-	if len(a.filters) != 0 {
-		filter := And(a.filters...)
-		sqls += " where " + filter.Where
-		rawArgs = append(rawArgs, filter.Args...)
+	if len(a.conds) > 0 {
+		var cond ExprIfc
+		if len(a.conds) == 1 {
+			cond = &a.conds[0]
+		} else {
+			cond = And(a.conds...)
+		}
+		sqls += " where " + cond.Expr()
+		rawArgs = append(rawArgs, cond.Args()...)
 	}
+
 	if len(a.groupby) > 0 {
 		sqls += fmt.Sprintf(" group by %s", strings.Join(a.groupby, ", "))
 	}
@@ -85,7 +115,7 @@ func (a *Stmt) Ctx(ctx context.Context) *Stmt {
 
 // SQL return the sql info for testing
 func (a *Stmt) SQL() (string, []interface{}, error) {
-	sqls, args, err := a.finish()
+	sqls, args, err := a.complete()
 	if err != nil {
 		return "", nil, err
 	}
@@ -100,23 +130,9 @@ func (a *Stmt) MustDo() (rowID, rowCount int64) {
 	return rowID, rowCount
 }
 
-func (a *Stmt) MustGet(dest interface{}) {
-	err := a.Get(dest)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func (a *Stmt) MustOne(dest interface{}) {
-	err := a.One(dest)
-	if err != nil {
-		panic(err)
-	}
-}
-
 // Do executing sql
 func (a *Stmt) Do() (rowID, rowCount int64, err error) {
-	sqls, args, err := a.finish()
+	sqls, args, err := a.complete()
 	if err != nil {
 		return 0, 0, err
 	}
@@ -145,8 +161,8 @@ func (a *Stmt) Count() (int64, error) {
 	defer func() {
 		a.sql = tmp
 	}()
-	a.sql = "select count(*) as cnt from " + a.table
-	sqls, args, err := a.finish()
+	a.sql = "select count(*) as cnt from " + a.table.TableName()
+	sqls, args, err := a.complete()
 	if err != nil {
 		return 0, err
 	}
@@ -169,17 +185,13 @@ func (a *Stmt) Count() (int64, error) {
 	return dest["cnt"].(int64), nil
 }
 
-func (a *Stmt) MustCount() int64 {
-	ret, err := a.Count()
-	if err != nil {
-		panic(err)
-	}
-	return ret
-}
-
 // Get executing sql and fetch the data and restore to dest
-func (a *Stmt) Get(dest interface{}) error {
-	sqls, args, err := a.finish()
+func (a *Stmt) Get(dest PayloadIfc) error {
+	dest.Bind()
+	queryFields := dest.Fields()
+	a.selectFields = queryFields
+	a.limit = 1
+	sqls, args, err := a.complete()
 	if err != nil {
 		return err
 	}
@@ -192,14 +204,15 @@ func (a *Stmt) Get(dest interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = ScanQueryRows(dest, rows)
+	// err = ScanQueryRows(dest, rows)
+	err = ScanQueryFields(queryFields, rows)
 	return err
 }
 
 // One executing sql fetch one data and restore to dest
 func (a *Stmt) One(dest interface{}) error {
 	a.limit = 1
-	sqls, args, err := a.finish()
+	sqls, args, err := a.complete()
 	if err != nil {
 		return err
 	}
@@ -216,20 +229,9 @@ func (a *Stmt) One(dest interface{}) error {
 	return err
 }
 
-// Filter generate where condition
-func (a *Stmt) Filter(filters ...*FilterItem) *Stmt {
-	if len(filters) == 0 {
-		return a
-	}
-	filter := And(filters...)
-	a.filters = append(a.filters, filter)
-	return a
-}
-
 // Where generate where condition
-func (a *Stmt) Where(cond string, arg ...interface{}) *Stmt {
-	filter := FilterS(cond, arg...)
-	a.filters = append(a.filters, filter)
+func (a *Stmt) Where(cond ...Cond) *Stmt {
+	a.conds = append(a.conds, cond...)
 	return a
 }
 

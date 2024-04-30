@@ -26,12 +26,12 @@ func sqlSelect(table string, wapper bool, field ...string) string {
 	return sql
 }
 
-func sqlUpdate(table string, data M) (string, []interface{}, error) {
+func sqlUpdate(table string, cols []FieldIfc) (string, []interface{}, error) {
 	var err error
 	var sql string
 	var set []string
 	var args []interface{}
-	if len(data) == 0 {
+	if len(cols) == 0 {
 		err = fmt.Errorf("update empty data")
 		return sql, args, err
 	}
@@ -39,18 +39,24 @@ func sqlUpdate(table string, data M) (string, []interface{}, error) {
 		err = fmt.Errorf("table not set")
 		return sql, args, err
 	}
-	value, err := IToMap(reflect.ValueOf(data))
-	if err != nil {
-		return sql, args, err
+	// value, err := IToMap(reflect.ValueOf(data))
+	// if err != nil {
+	// 	return sql, args, err
+	// }
+	// for k := range value {
+	// 	set = append(set, k)
+	// }
+	for _, k := range cols {
+		if k.Dirty() {
+			set = append(set, fmt.Sprintf("%s=?", FieldWapper(k.ColName())))
+			args = append(args, k.Val())
+		}
 	}
-	for k := range value {
-		set = append(set, k)
-	}
-	sort.Strings(set)
-	for i, k := range set {
-		set[i] = FieldWapper(k) + "=?"
-		args = append(args, value[k])
-	}
+	// sort.Strings(set)
+	// for i, k := range set {
+	// 	set[i] = FieldWapper(k) + "=?"
+	// 	args = append(args, value[k])
+	// }
 	sql = "update " + FieldWapper(table) + " set " + strings.Join(set, ", ")
 	return sql, args, err
 }
