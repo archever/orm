@@ -140,8 +140,8 @@ func Select(table Schema, fields ...FieldIfc) ExprIfc {
 }
 
 type updateExpr struct {
-	sets  []Cond
-	table Schema
+	sets   []Cond
+	schema Schema
 }
 
 func (e *updateExpr) Expr() (expr string, args []any) {
@@ -151,7 +151,7 @@ func (e *updateExpr) Expr() (expr string, args []any) {
 		set = append(set, s)
 		args = append(args, a...)
 	}
-	expr = fmt.Sprintf("UPDATE %s SET %s", FieldWrapper(e.table.TableName()), strings.Join(set, ", "))
+	expr = fmt.Sprintf("UPDATE %s SET %s", FieldWrapper(e.schema.TableName()), strings.Join(set, ", "))
 	return
 }
 
@@ -183,5 +183,29 @@ func (a where) Expr() (expr string, args []any) {
 	e, ar := cond.Expr()
 	expr = "WHERE " + e
 	args = ar
+	return
+}
+
+type ExprSlice []ExprIfc
+
+func (a ExprSlice) Expr() (expr string, args []any) {
+	sb := strings.Builder{}
+	for _, e := range a {
+		e, a := e.Expr()
+		if e != "" {
+			sb.WriteString(e)
+			sb.WriteString(" ")
+		}
+		args = append(args, a...)
+	}
+	return sb.String(), args
+}
+
+type deleteExpr struct {
+	schema Schema
+}
+
+func (e *deleteExpr) Expr() (expr string, args []any) {
+	expr = fmt.Sprintf("DELETE FROM %s", FieldWrapper(e.schema.TableName()))
 	return
 }

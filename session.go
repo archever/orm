@@ -9,15 +9,6 @@ type Session struct {
 	db ExecutorIfc
 }
 
-// func (s *Session) Exec(sql string, arg ...interface{}) *Stmt {
-// 	ret := new(Stmt)
-// 	sql, args := sqlExec(sql, arg...)
-// 	ret.db = s.DB
-// 	ret.sql = sql
-// 	ret.args = args
-// 	return ret
-// }
-
 func (s *Session) Table(schema Schema) *Action {
 	return &Action{
 		session: s,
@@ -28,11 +19,12 @@ func (s *Session) Table(schema Schema) *Action {
 func (s *Session) queryPayload(ctx context.Context, stmt *Stmt, payload PayloadIfc) error {
 	payload.Bind()
 	fields := payload.Fields()
-	stmt.selectExpr.fields = fields
-	sqlRaw, argsRaw, err := stmt.SQL()
+	stmt.selectField = fields
+	expr, err := stmt.completeSelect()
 	if err != nil {
 		return err
 	}
+	sqlRaw, argsRaw := expr.Expr()
 	rows, err := s.db.QueryContext(ctx, sqlRaw, argsRaw...)
 	if err != nil {
 		return err
@@ -41,9 +33,10 @@ func (s *Session) queryPayload(ctx context.Context, stmt *Stmt, payload PayloadI
 }
 
 func (s *Session) exec(ctx context.Context, stmt *Stmt) (sql.Result, error) {
-	sqlRaw, argsRaw, err := stmt.SQL()
+	expr, err := stmt.complete()
 	if err != nil {
 		return nil, err
 	}
+	sqlRaw, argsRaw := expr.Expr()
 	return s.db.ExecContext(ctx, sqlRaw, argsRaw...)
 }

@@ -7,27 +7,25 @@ type Action struct {
 
 func (o *Action) Select(field ...FieldIfc) *Stmt {
 	stm := &Stmt{
-		session: o.session,
-		selectExpr: &selectExpr{
-			fields: field,
-			schema: o.schema,
-		},
+		session:     o.session,
+		schema:      o.schema,
+		selectField: field,
 	}
+	stm.completeFn = stm.completeSelect
 	return stm
 }
 
 func (o *Action) UpdatePayload(payload PayloadIfc) *Stmt {
 	stm := &Stmt{
 		session: o.session,
-		updateExpr: &updateExpr{
-			table: o.schema,
-		},
+		schema:  o.schema,
 	}
-	// payload.Bind()
+	stm.completeFn = stm.completeUpdate
+	payload.Bind()
 	fields := payload.Fields()
 	for i := range fields {
 		if fields[i].Dirty() {
-			stm.updateExpr.sets = append(stm.updateExpr.sets, Cond{
+			stm.sets = append(stm.sets, Cond{
 				left:     fields[i],
 				Op:       "=",
 				rightVal: fields[i].Val(),
@@ -40,11 +38,10 @@ func (o *Action) UpdatePayload(payload PayloadIfc) *Stmt {
 func (o *Action) Update(cond ...Cond) *Stmt {
 	stm := &Stmt{
 		session: o.session,
-		updateExpr: &updateExpr{
-			sets:  cond,
-			table: o.schema,
-		},
+		schema:  o.schema,
+		sets:    cond,
 	}
+	stm.completeFn = stm.completeUpdate
 	return stm
 }
 
@@ -80,10 +77,11 @@ func (o *Action) Update(cond ...Cond) *Stmt {
 // 	return o.passStmt(sql, args...)
 // }
 
-// func (o *Action) Delete() *Stmt {
-// 	sql, err := sqlDelete(o.table)
-// 	if err != nil {
-// 		return o.errStmt(err)
-// 	}
-// 	return o.passStmt(sql)
-// }
+func (o *Action) Delete() *Stmt {
+	stm := &Stmt{
+		session: o.session,
+		schema:  o.schema,
+	}
+	stm.completeFn = stm.completeDelete
+	return stm
+}

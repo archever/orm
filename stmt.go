@@ -1,70 +1,20 @@
 package orm
 
-import (
-	"context"
-	"errors"
-	"strings"
-)
+import "context"
 
 type Stmt struct {
-	session *Session
-	*selectExpr
-	*updateExpr
-	schema Schema
+	err        error
+	session    *Session
+	schema     Schema
+	completeFn func() (ExprIfc, error)
 
-	conds   []Cond
-	orderBy orderBy
-	groupBy groupBy
-	limit   *limit
-	offset  *offset
-
-	err error
-}
-
-func (a *Stmt) complete() (rawSQL string, argList []any, err error) {
-	if a.err != nil {
-		err = a.err
-		return
-	}
-	parts := []ExprIfc{}
-	if a.selectExpr != nil {
-		parts = append(parts, a.selectExpr)
-	}
-	if a.updateExpr != nil {
-		parts = append(parts, a.updateExpr)
-	}
-
-	if len(a.conds) > 0 {
-		parts = append(parts, Where(a.conds...))
-	}
-
-	if len(a.groupBy) > 0 {
-		parts = append(parts, a.groupBy)
-	}
-	if len(a.orderBy) > 0 {
-		parts = append(parts, a.orderBy)
-	}
-	if a.offset != nil {
-		parts = append(parts, a.offset)
-	}
-	if a.limit != nil {
-		parts = append(parts, a.limit)
-	}
-	sb := strings.Builder{}
-	for i := range parts {
-		part := parts[i]
-		expr, arg := part.Expr()
-		sb.WriteString(expr)
-		sb.WriteString(" ")
-		argList = append(argList, arg...)
-	}
-	rawSQL = sb.String()
-	return
-}
-
-// SQL return the sql info for testing
-func (a *Stmt) SQL() (string, []any, error) {
-	return a.complete()
+	conds       []Cond
+	orderBy     []Order
+	groupBy     []FieldIfc
+	sets        []Cond
+	selectField []FieldIfc
+	limit       *limit
+	offset      *offset
 }
 
 // Where generate where condition
@@ -109,13 +59,91 @@ func (a *Stmt) Page(page, size int64) *Stmt {
 }
 
 func (a *Stmt) Set(cond ...Cond) *Stmt {
-	if a.updateExpr == nil {
-		a.err = errors.New("set is only for update")
-		return a
-	}
 	// TODO 去重
-	a.updateExpr.sets = append(a.updateExpr.sets, cond...)
+	a.sets = append(a.sets, cond...)
 	return a
+}
+
+func (a *Stmt) Select(field ...FieldIfc) *Stmt {
+	// TODO 去重
+	a.selectField = append(a.selectField, field...)
+	return a
+}
+
+func (a *Stmt) completeSelect() (ExprIfc, error) {
+	action := &selectExpr{
+		fields: a.selectField,
+		schema: a.schema,
+	}
+	exprs := []ExprIfc{action}
+	if len(a.conds) > 0 {
+		exprs = append(exprs, Where(a.conds...))
+	}
+	if len(a.groupBy) > 0 {
+		exprs = append(exprs, groupBy(a.groupBy))
+	}
+	if len(a.orderBy) > 0 {
+		exprs = append(exprs, orderBy(a.orderBy))
+	}
+	if a.limit != nil {
+		exprs = append(exprs, a.limit)
+	}
+	if a.offset != nil {
+		exprs = append(exprs, a.offset)
+	}
+	return ExprSlice(exprs), a.err
+}
+
+func (a *Stmt) completeDelete() (ExprIfc, error) {
+	action := &deleteExpr{
+		schema: a.schema,
+	}
+	exprs := []ExprIfc{action}
+	if len(a.conds) > 0 {
+		exprs = append(exprs, Where(a.conds...))
+	}
+	if a.limit != nil {
+		exprs = append(exprs, a.limit)
+	}
+	if a.offset != nil {
+		exprs = append(exprs, a.offset)
+	}
+	return ExprSlice(exprs), a.err
+}
+
+func (a *Stmt) completeUpdate() (ExprIfc, error) {
+	// TODO: 根据 select 过滤 set
+	action := &updateExpr{
+		sets:   a.sets,
+		schema: a.schema,
+	}
+	exprs := []ExprIfc{action}
+	if len(a.conds) > 0 {
+		exprs = append(exprs, Where(a.conds...))
+	}
+	if len(a.groupBy) > 0 {
+		exprs = append(exprs, groupBy(a.groupBy))
+	}
+	if len(a.orderBy) > 0 {
+		exprs = append(exprs, orderBy(a.orderBy))
+	}
+	if a.limit != nil {
+		exprs = append(exprs, a.limit)
+	}
+	if a.offset != nil {
+		exprs = append(exprs, a.offset)
+	}
+	return ExprSlice(exprs), a.err
+}
+
+func (a *Stmt) complete() (ExprIfc, error) {
+	if a.completeFn != nil {
+		return a.completeFn()
+	}
+	if a.selectField != nil {
+		return a.completeSelect()
+	}
+	return a.completeUpdate()
 }
 
 func (a *Stmt) TakePayload(ctx context.Context, payload PayloadIfc) error {

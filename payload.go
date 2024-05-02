@@ -6,11 +6,18 @@ type PayloadIfc interface {
 }
 
 type PayloadBase struct {
-	binds []FieldIfc
+	bindMap map[string]bool
+	binds   []FieldIfc
 }
 
 func (p *PayloadBase) BindField(f FieldIfc) {
-	// TODO: check if field is already bound
+	if p.bindMap == nil {
+		p.bindMap = make(map[string]bool)
+	}
+	if p.bindMap[f.ColName()] {
+		return
+	}
+	p.bindMap[f.ColName()] = true
 	p.binds = append(p.binds, f)
 }
 
