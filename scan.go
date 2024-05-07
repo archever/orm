@@ -265,6 +265,10 @@ func ScanQueryFields(dest []FieldIfc, rows *sql.Rows) error {
 	}
 	fieldMap := map[string]int{}
 	for i, field := range fields {
+		// 名称一样的场景, 跨表查询
+		if _, ok := fieldMap[field]; ok {
+			return ScanQueryFieldsWithOrder(dest, rows)
+		}
 		fieldMap[field] = i
 	}
 	values := make([]interface{}, len(fields))
@@ -274,6 +278,22 @@ func ScanQueryFields(dest []FieldIfc, rows *sql.Rows) error {
 			return fmt.Errorf("field not found: %s", field.ColName(false))
 		}
 		values[index] = field.RefVal()
+	}
+	for rows.Next() {
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+	}
+	for _, field := range dest {
+		field.setPreVal(field.Val())
+	}
+	return nil
+}
+
+func ScanQueryFieldsWithOrder(dest []FieldIfc, rows *sql.Rows) error {
+	values := make([]any, 0, len(dest))
+	for _, field := range dest {
+		values = append(values, field.RefVal())
 	}
 	for rows.Next() {
 		if err := rows.Scan(values...); err != nil {

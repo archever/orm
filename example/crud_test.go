@@ -49,7 +49,7 @@ func TestUpdate(t *testing.T) {
 	t.Logf("%v", payload)
 
 	payload.Name = "name2"
-	err = s.Table(user).UpdatePayload(&payload).Where(user.ID.Eq(10)).Do(ctx)
+	_, err = s.Table(user).UpdatePayload(&payload).Where(user.ID.Eq(10)).Do(ctx)
 	assert.NoError(t, err)
 }
 
@@ -65,7 +65,7 @@ func TestDelete(t *testing.T) {
 		WithArgs(10).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	// var payload userPayload
-	err := s.Table(user).Delete().Where(user.ID.Eq(10)).Do(ctx)
+	_, err := s.Table(user).Delete().Where(user.ID.Eq(10)).Do(ctx)
 	assert.NoError(t, err)
 }
 
@@ -84,7 +84,7 @@ func TestInsert(t *testing.T) {
 	mockDB.ExpectExec("INSERT INTO `user` (`id`,`name`) VALUES(?,?)").
 		WithArgs(10, "archever").
 		WillReturnResult(sqlmock.NewResult(1, 1))
-	err := s.Table(user).InsertPayload(row1).Do(ctx)
+	_, err := s.Table(user).InsertPayload(row1).Do(ctx)
 	assert.NoError(t, err)
 }
 
@@ -107,6 +107,6 @@ func TestInsertMany(t *testing.T) {
 	mockDB.ExpectExec("INSERT INTO `user` (`id`,`name`) VALUES(?,?),(?,?)").
 		WithArgs(10, "archever", 12, "archever2").
 		WillReturnResult(sqlmock.NewResult(1, 1))
-	err := s.Table(user).InsertPayload(row1, row2).Do(ctx)
+	_, err := s.Table(user).InsertPayload(row1, row2).Do(ctx)
 	assert.NoError(t, err)
 }

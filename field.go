@@ -10,8 +10,8 @@ type FieldIfc interface {
 	ColName(withEscape bool) string
 	DBColName(withEscape bool) string
 	RefVal() any
-	AutoIncrement() bool
 	Val() any
+	AutoIncrement() bool
 	Dirty() bool
 
 	set(any)
@@ -103,5 +103,17 @@ func (f Field[T]) EqCol(col Field[T]) Cond {
 		left:       &f,
 		Op:         "=",
 		rightField: &col,
+	}
+}
+
+func (f Field[T]) In(val ...T) Cond {
+	anyList := []any{}
+	for _, v := range val {
+		anyList = append(anyList, v)
+	}
+	return Cond{
+		left:         &f,
+		Op:           "IN",
+		rightValList: anyList,
 	}
 }

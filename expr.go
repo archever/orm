@@ -24,18 +24,29 @@ var _ ExprIfc = (*insertExpr)(nil)
 var _ ExprIfc = (*ExprSlice)(nil)
 
 type Cond struct {
-	left       FieldIfc
-	rightVal   any
-	rightField FieldIfc
-	Op         string
+	left         FieldIfc
+	rightVal     any
+	rightValList []any
+	rightField   FieldIfc
+	Op           string
 }
 
 func (c *Cond) Expr() (expr string, args []any) {
-	if c.rightField != nil {
-		expr = c.left.DBColName(true) + c.Op + c.rightField.DBColName(true)
-	} else {
-		expr = c.left.DBColName(true) + c.Op + "?"
-		args = []any{c.rightVal}
+	switch c.Op {
+	case "IN":
+		val := []string{}
+		for _, v := range c.rightValList {
+			val = append(val, "?")
+			args = append(args, v)
+		}
+		expr = fmt.Sprintf("%s IN (%s)", c.left.DBColName(true), strings.Join(val, ","))
+	default:
+		if c.rightField != nil {
+			expr = c.left.DBColName(true) + c.Op + c.rightField.DBColName(true)
+		} else {
+			expr = c.left.DBColName(true) + c.Op + "?"
+			args = []any{c.rightVal}
+		}
 	}
 	return
 }
@@ -122,14 +133,19 @@ func (a *offset) Expr() (expr string, args []any) {
 }
 
 type selectExpr struct {
-	fields []FieldIfc
-	schema Schema
+	fields        []FieldIfc
+	schema        Schema
+	withTableName bool
 }
 
 func (a selectExpr) Expr() (expr string, args []any) {
 	fields := []string{}
 	for _, field := range a.fields {
-		fields = append(fields, field.ColName(true))
+		if a.withTableName {
+			fields = append(fields, field.DBColName(true))
+		} else {
+			fields = append(fields, field.ColName(true))
+		}
 	}
 	expr = fmt.Sprintf("SELECT %s FROM %s", strings.Join(fields, ", "), FieldWrapper(a.schema.TableName()))
 	return

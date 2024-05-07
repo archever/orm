@@ -87,6 +87,9 @@ func (a *Stmt) completeSelect() (ExprIfc, error) {
 		fields: a.selectField,
 		schema: a.schema,
 	}
+	if len(a.joins) > 0 {
+		action.withTableName = true
+	}
 	exprs := []ExprIfc{action}
 	for _, join := range a.joins {
 		exprs = append(exprs, &join)
@@ -177,21 +180,21 @@ func (a *Stmt) TakePayload(ctx context.Context, payload PayloadIfc) error {
 	return a.session.queryPayload(ctx, a, payload)
 }
 
-func (a *Stmt) Do(ctx context.Context) error {
+func (a *Stmt) Do(ctx context.Context) (rowCnt int64, err error) {
 	ret, err := a.session.exec(ctx, a)
 	if err != nil {
-		return err
+		return
 	}
 	id, err := ret.LastInsertId()
 	if err != nil {
-		return err
+		return
 	}
-	row, err := ret.RowsAffected()
+	rowCnt, err = ret.RowsAffected()
 	if err != nil {
-		return err
+		return
 	}
 	if a.afterExecFn != nil {
-		a.afterExecFn(row, id)
+		a.afterExecFn(rowCnt, id)
 	}
-	return err
+	return
 }

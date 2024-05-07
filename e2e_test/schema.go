@@ -21,7 +21,7 @@ func (s *userSchema) TableName() string {
 }
 
 var team = &teamSchema{
-	ID:   orm.Field[int64]{Name: "id", Schema: &teamSchema{}},
+	ID:   orm.Field[int64]{Name: "id", Schema: &teamSchema{}, IsAutoIncrement: true},
 	Name: orm.Field[string]{Name: "name", Schema: &teamSchema{}},
 }
 
