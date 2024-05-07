@@ -37,7 +37,10 @@ func Scan(rows *sql.Rows) ([]map[string]*ScanRow, error) {
 		for i := range scanV {
 			scanI[i] = &scanV[i]
 		}
-		rows.Scan(scanI...)
+		err = rows.Scan(scanI...)
+		if err != nil {
+			return nil, err
+		}
 
 		for i := range cols {
 			v := ""
@@ -266,9 +269,9 @@ func ScanQueryFields(dest []FieldIfc, rows *sql.Rows) error {
 	}
 	values := make([]interface{}, len(fields))
 	for _, field := range dest {
-		index, ok := fieldMap[field.ColName()]
+		index, ok := fieldMap[field.ColName(false)]
 		if !ok {
-			return fmt.Errorf("field not found: %s", field.ColName())
+			return fmt.Errorf("field not found: %s", field.ColName(false))
 		}
 		values[index] = field.RefVal()
 	}
@@ -605,7 +608,7 @@ func ToStruct(row map[string]*ScanRow, rv reflect.Value) error {
 		}
 		var data *ScanRow
 		var ok bool
-		if data, ok = row[fieldName]; !ok {
+		if _, ok = row[fieldName]; !ok {
 			fieldName = strings.ToLower(fieldName)
 		}
 		if data, ok = row[fieldName]; !ok {

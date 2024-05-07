@@ -8,6 +8,8 @@ type Stmt struct {
 	schema     Schema
 	completeFn func() (ExprIfc, error)
 
+	joins       []joinExpr
+	values      [][]FieldIfc
 	conds       []Cond
 	orderBy     []Order
 	groupBy     []FieldIfc
@@ -15,6 +17,8 @@ type Stmt struct {
 	selectField []FieldIfc
 	limit       *limit
 	offset      *offset
+
+	afterExecFn func(row, id int64)
 }
 
 // Where generate where condition
@@ -70,12 +74,23 @@ func (a *Stmt) Select(field ...FieldIfc) *Stmt {
 	return a
 }
 
+func (a *Stmt) Join(s Schema, on ...Cond) *Stmt {
+	a.joins = append(a.joins, joinExpr{
+		schema: s,
+		on:     on,
+	})
+	return a
+}
+
 func (a *Stmt) completeSelect() (ExprIfc, error) {
 	action := &selectExpr{
 		fields: a.selectField,
 		schema: a.schema,
 	}
 	exprs := []ExprIfc{action}
+	for _, join := range a.joins {
+		exprs = append(exprs, &join)
+	}
 	if len(a.conds) > 0 {
 		exprs = append(exprs, Where(a.conds...))
 	}
@@ -108,6 +123,16 @@ func (a *Stmt) completeDelete() (ExprIfc, error) {
 	if a.offset != nil {
 		exprs = append(exprs, a.offset)
 	}
+	return ExprSlice(exprs), a.err
+}
+
+func (a *Stmt) completeInsert() (ExprIfc, error) {
+	action := &insertExpr{
+		schema: a.schema,
+		vales:  a.values,
+		fields: a.selectField,
+	}
+	exprs := []ExprIfc{action}
 	return ExprSlice(exprs), a.err
 }
 
@@ -153,6 +178,20 @@ func (a *Stmt) TakePayload(ctx context.Context, payload PayloadIfc) error {
 }
 
 func (a *Stmt) Do(ctx context.Context) error {
-	_, err := a.session.exec(ctx, a)
+	ret, err := a.session.exec(ctx, a)
+	if err != nil {
+		return err
+	}
+	id, err := ret.LastInsertId()
+	if err != nil {
+		return err
+	}
+	row, err := ret.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if a.afterExecFn != nil {
+		a.afterExecFn(row, id)
+	}
 	return err
 }

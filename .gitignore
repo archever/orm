@@ -2,3 +2,4 @@
 **/_*
 .cover
 vendor
+.env

@@ -15,10 +15,13 @@ var _ ExprIfc = (*Order)(nil)
 var _ ExprIfc = (*orderBy)(nil)
 var _ ExprIfc = (*limit)(nil)
 var _ ExprIfc = (*offset)(nil)
-var _ ExprIfc = (*selectExpr)(nil)
-var _ ExprIfc = (*updateExpr)(nil)
 var _ ExprIfc = (*groupBy)(nil)
 var _ ExprIfc = (*where)(nil)
+var _ ExprIfc = (*selectExpr)(nil)
+var _ ExprIfc = (*updateExpr)(nil)
+var _ ExprIfc = (*deleteExpr)(nil)
+var _ ExprIfc = (*insertExpr)(nil)
+var _ ExprIfc = (*ExprSlice)(nil)
 
 type Cond struct {
 	left       FieldIfc
@@ -29,9 +32,9 @@ type Cond struct {
 
 func (c *Cond) Expr() (expr string, args []any) {
 	if c.rightField != nil {
-		expr = FieldWrapper(c.left.ColName()) + c.Op + c.rightField.ColName()
+		expr = c.left.DBColName(true) + c.Op + c.rightField.DBColName(true)
 	} else {
-		expr = FieldWrapper(c.left.ColName()) + c.Op + "?"
+		expr = c.left.DBColName(true) + c.Op + "?"
 		args = []any{c.rightVal}
 	}
 	return
@@ -93,7 +96,7 @@ type Order struct {
 }
 
 func (a *Order) Expr() (expr string, args []any) {
-	expr = FieldWrapper(a.Field.ColName())
+	expr = a.Field.DBColName(true)
 	if a.Desc {
 		expr += " DESC"
 	}
@@ -126,7 +129,7 @@ type selectExpr struct {
 func (a selectExpr) Expr() (expr string, args []any) {
 	fields := []string{}
 	for _, field := range a.fields {
-		fields = append(fields, FieldWrapper(field.ColName()))
+		fields = append(fields, field.ColName(true))
 	}
 	expr = fmt.Sprintf("SELECT %s FROM %s", strings.Join(fields, ", "), FieldWrapper(a.schema.TableName()))
 	return
@@ -160,7 +163,7 @@ type groupBy []FieldIfc
 func (gb groupBy) Expr() (expr string, args []any) {
 	fields := []string{}
 	for _, field := range gb {
-		fields = append(fields, FieldWrapper(field.ColName()))
+		fields = append(fields, field.ColName(true))
 	}
 	expr = "GROUP BY " + strings.Join(fields, ", ")
 	return
@@ -207,5 +210,47 @@ type deleteExpr struct {
 
 func (e *deleteExpr) Expr() (expr string, args []any) {
 	expr = fmt.Sprintf("DELETE FROM %s", FieldWrapper(e.schema.TableName()))
+	return
+}
+
+type insertExpr struct {
+	vales  [][]FieldIfc
+	fields []FieldIfc
+	schema Schema
+}
+
+func (e *insertExpr) Expr() (expr string, args []any) {
+	fields := []string{}
+	for _, field := range e.fields {
+		fields = append(fields, field.ColName(true))
+	}
+	sb := strings.Builder{}
+	sb.WriteString(fmt.Sprintf("INSERT INTO %s (%s) VALUES", FieldWrapper(e.schema.TableName()), strings.Join(fields, ",")))
+	rows := []string{}
+	for _, row := range e.vales {
+		values := []string{}
+		for _, field := range row {
+			values = append(values, "?")
+			args = append(args, field.Val())
+		}
+		rows = append(rows, "("+strings.Join(values, ",")+")")
+	}
+	sb.WriteString(strings.Join(rows, ","))
+	expr = sb.String()
+	return
+}
+
+type joinExpr struct {
+	on     []Cond
+	schema Schema
+}
+
+func (a *joinExpr) Expr() (expr string, args []any) {
+	expr = fmt.Sprintf("JOIN %s ON", FieldWrapper(a.schema.TableName()))
+	for _, cond := range a.on {
+		e, a := cond.Expr()
+		expr += " " + e
+		args = append(args, a...)
+	}
 	return
 }

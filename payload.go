@@ -11,13 +11,14 @@ type PayloadBase struct {
 }
 
 func (p *PayloadBase) BindField(f FieldIfc) {
+	key := f.DBColName(true)
 	if p.bindMap == nil {
 		p.bindMap = make(map[string]bool)
 	}
-	if p.bindMap[f.ColName()] {
+	if p.bindMap[key] {
 		return
 	}
-	p.bindMap[f.ColName()] = true
+	p.bindMap[key] = true
 	p.binds = append(p.binds, f)
 }
 

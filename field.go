@@ -1,29 +1,63 @@
 package orm
 
 import (
+	"fmt"
 	"log"
 	"reflect"
 )
 
 type FieldIfc interface {
-	ColName() string
+	ColName(withEscape bool) string
+	DBColName(withEscape bool) string
 	RefVal() any
+	AutoIncrement() bool
 	Val() any
 	Dirty() bool
+
+	set(any)
 	WithRef(val any) FieldIfc
 	setPreVal(val any)
 }
 
 type Field[T any] struct {
-	Name string
+	Name            string
+	Schema          Schema
+	IsAutoIncrement bool
 	// 是否被缓存值
 	scanned bool
 	preVal  T
 	refVal  *T
 }
 
-func (f *Field[T]) ColName() string {
-	return f.Name
+func (f *Field[T]) AutoIncrement() bool {
+	return f.IsAutoIncrement
+}
+
+func (f *Field[T]) set(v any) {
+	*f.refVal = v.(T)
+}
+
+func (f *Field[T]) ColName(withEscape bool) string {
+	wrapFn := func(s string) string {
+		return s
+	}
+	if withEscape {
+		wrapFn = FieldWrapper
+	}
+	return wrapFn(f.Name)
+}
+
+func (f *Field[T]) DBColName(withEscape bool) string {
+	wrapFn := func(s string) string {
+		return s
+	}
+	if withEscape {
+		wrapFn = FieldWrapper
+	}
+	return fmt.Sprintf("%s.%s",
+		wrapFn(f.Schema.TableName()),
+		wrapFn(f.Name),
+	)
 }
 
 func (f *Field[T]) WithRef(ref any) FieldIfc {

@@ -7,7 +7,7 @@ import (
 )
 
 type Client struct {
-	DB         *sql.DB
+	DB         *DefaultExecutor
 	driverName string
 }
 
@@ -40,5 +40,5 @@ func NewClient(driverName, dataSourceName string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{DB: db, driverName: driverName}, nil
+	return &Client{DB: NewDefaultExecutor(db), driverName: driverName}, nil
 }

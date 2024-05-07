@@ -1,5 +1,7 @@
 package orm
 
+import "errors"
+
 type Action struct {
 	session *Session
 	schema  Schema
@@ -83,5 +85,40 @@ func (o *Action) Delete() *Stmt {
 		schema:  o.schema,
 	}
 	stm.completeFn = stm.completeDelete
+	return stm
+}
+
+func (o *Action) InsertPayload(row ...PayloadIfc) *Stmt {
+	if len(row) == 0 {
+		return &Stmt{err: errors.New("no payload")}
+	}
+	values := [][]FieldIfc{}
+	autoIncrementFields := []FieldIfc{}
+	for i := range row {
+		row[i].Bind()
+		fields := row[i].Fields()
+		ignoredFields := []FieldIfc{}
+		for j := range fields {
+			if fields[j].AutoIncrement() {
+				autoIncrementFields = append(autoIncrementFields, fields[j])
+				continue
+			}
+			ignoredFields = append(ignoredFields, fields[j])
+		}
+		values = append(values, ignoredFields)
+	}
+	stm := &Stmt{
+		session:     o.session,
+		schema:      o.schema,
+		selectField: values[0],
+		values:      values,
+	}
+	stm.completeFn = stm.completeInsert
+	stm.afterExecFn = func(row, id int64) {
+		for i := range autoIncrementFields {
+			f := autoIncrementFields[i]
+			f.set(id + int64(i))
+		}
+	}
 	return stm
 }
