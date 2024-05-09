@@ -24,31 +24,32 @@ var _ ExprIfc = (*insertExpr)(nil)
 var _ ExprIfc = (*ExprSlice)(nil)
 
 type Cond struct {
-	left         FieldIfc
-	rightVal     any
-	rightValList []any
-	rightField   FieldIfc
-	Op           string
+	left  ExprIfc
+	right ExprIfc
+	Op    string
+
+	// left         FieldIfc
+	// rightVal     any
+	// rightValList []any
+	// rightField   FieldIfc
+	// rightExpr    ExprIfc
+	// Op           string
 }
 
 func (c *Cond) Expr() (expr string, args []any) {
 	switch c.Op {
-	case "IN":
-		val := []string{}
-		for _, v := range c.rightValList {
-			val = append(val, "?")
-			args = append(args, v)
-		}
-		expr = fmt.Sprintf("%s IN (%s)", c.left.DBColName(true), strings.Join(val, ","))
 	case "IS NULL", "IS NOT NULL":
-		expr = c.left.DBColName(true) + " " + c.Op
+		leftE, leftA := c.left.Expr()
+		expr = leftE + " " + c.Op
+		args = append(args, leftA...)
+	case "IN", "NOT IN":
+		fallthrough
 	default:
-		if c.rightField != nil {
-			expr = c.left.DBColName(true) + c.Op + c.rightField.DBColName(true)
-		} else {
-			expr = c.left.DBColName(true) + c.Op + "?"
-			args = []any{c.rightVal}
-		}
+		leftE, leftA := c.left.Expr()
+		rightE, rightA := c.right.Expr()
+		expr = fmt.Sprintf("%s %s %s", leftE, c.Op, rightE)
+		args = append(args, leftA...)
+		args = append(args, rightA...)
 	}
 	return
 }
@@ -211,11 +212,14 @@ type ExprSlice []ExprIfc
 
 func (a ExprSlice) Expr() (expr string, args []any) {
 	sb := strings.Builder{}
-	for _, e := range a {
+	length := len(a)
+	for i, e := range a {
 		e, a := e.Expr()
 		if e != "" {
 			sb.WriteString(e)
-			sb.WriteString(" ")
+			if i < length-1 {
+				sb.WriteString(" ")
+			}
 		}
 		args = append(args, a...)
 	}
@@ -270,5 +274,35 @@ func (a *joinExpr) Expr() (expr string, args []any) {
 		expr += " " + e
 		args = append(args, a...)
 	}
+	return
+}
+
+type anyVal struct {
+	any
+}
+
+func (a anyVal) Expr() (expr string, args []any) {
+	expr = "?"
+	args = []any{a.any}
+	return
+}
+
+type anyValList []any
+
+func (a anyValList) Expr() (expr string, args []any) {
+	expr = strings.Repeat("?,", len(a))
+	expr = expr[:len(expr)-1]
+	args = a
+	return
+}
+
+type brackets struct {
+	ExprIfc
+}
+
+func (b brackets) Expr() (expr string, args []any) {
+	e, a := b.ExprIfc.Expr()
+	expr = "(" + e + ")"
+	args = a
 	return
 }

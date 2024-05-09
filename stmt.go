@@ -174,6 +174,11 @@ func (a *Stmt) complete() (ExprIfc, error) {
 	return a.completeUpdate()
 }
 
+func (a *Stmt) SubQuery() ExprIfc {
+	expr, _ := a.completeSelect()
+	return expr
+}
+
 func (a *Stmt) TakePayload(ctx context.Context, payload PayloadIfc, nestedPayload ...any) error {
 	a.limit = new(limit)
 	*a.limit = 1

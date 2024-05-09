@@ -15,6 +15,7 @@ type FieldIfc interface {
 	Val() any
 	AutoIncrement() bool
 	Dirty() bool
+	ExprIfc
 
 	set(any)
 	WithRef(val any) FieldIfc
@@ -92,35 +93,47 @@ func (f *Field[T]) Dirty() bool {
 	return true
 }
 
+func (f Field[T]) Expr() (string, []any) {
+	return f.DBColName(true), []any{}
+}
+
 func (f Field[T]) Eq(val T) Cond {
 	return Cond{
-		left:     &f,
-		Op:       "=",
-		rightVal: val,
+		left:  &f,
+		Op:    "=",
+		right: anyVal{val},
 	}
 }
 
 func (f Field[T]) EqCol(col Field[T]) Cond {
 	return Cond{
-		left:       &f,
-		Op:         "=",
-		rightField: &col,
+		left:  &f,
+		Op:    "=",
+		right: &col,
+	}
+}
+
+func (f Field[T]) EqQuery(q ExprIfc) Cond {
+	return Cond{
+		left:  &f,
+		Op:    "=",
+		right: brackets{q},
 	}
 }
 
 func (f Field[T]) NotEq(val T) Cond {
 	return Cond{
-		left:     &f,
-		Op:       "<>",
-		rightVal: val,
+		left:  &f,
+		Op:    "<>",
+		right: anyVal{val},
 	}
 }
 
 func (f Field[T]) NotEqCol(col Field[T]) Cond {
 	return Cond{
-		left:       &f,
-		Op:         "<>",
-		rightField: &col,
+		left:  &f,
+		Op:    "<>",
+		right: &col,
 	}
 }
 
@@ -130,9 +143,17 @@ func (f Field[T]) In(val ...T) Cond {
 		anyList = append(anyList, v)
 	}
 	return Cond{
-		left:         &f,
-		Op:           "IN",
-		rightValList: anyList,
+		left:  &f,
+		Op:    "IN",
+		right: brackets{anyValList(anyList)},
+	}
+}
+
+func (f Field[T]) InQuery(q ExprIfc) Cond {
+	return Cond{
+		left:  &f,
+		Op:    "IN",
+		right: brackets{q},
 	}
 }
 
@@ -151,64 +172,75 @@ func (f Field[T]) IsNull(isNull bool) Cond {
 
 func (f Field[T]) Gt(val T) Cond {
 	return Cond{
-		left:     &f,
-		Op:       ">",
-		rightVal: val,
+		left:  &f,
+		Op:    ">",
+		right: anyVal{val},
 	}
 }
 
 func (f Field[T]) Gte(val T) Cond {
 	return Cond{
-		left:     &f,
-		Op:       ">=",
-		rightVal: val,
+		left:  &f,
+		Op:    ">=",
+		right: anyVal{val},
 	}
 }
 
 func (f Field[T]) Lt(val T) Cond {
 	return Cond{
-		left:     &f,
-		Op:       "<",
-		rightVal: val,
+		left:  &f,
+		Op:    "<",
+		right: anyVal{val},
 	}
 }
 
 func (f Field[T]) Lte(val T) Cond {
 	return Cond{
-		left:     &f,
-		Op:       "<=",
-		rightVal: val,
+		left:  &f,
+		Op:    "<=",
+		right: anyVal{val},
 	}
 }
 
 func (f Field[T]) GtCol(col FieldIfc) Cond {
 	return Cond{
-		left:       &f,
-		Op:         ">",
-		rightField: col,
+		left:  &f,
+		Op:    ">",
+		right: col,
 	}
 }
 
 func (f Field[T]) GteCol(col FieldIfc) Cond {
 	return Cond{
-		left:       &f,
-		Op:         ">=",
-		rightField: col,
+		left:  &f,
+		Op:    ">=",
+		right: col,
 	}
 }
 
 func (f Field[T]) LtCol(col FieldIfc) Cond {
 	return Cond{
-		left:       &f,
-		Op:         "<",
-		rightField: col,
+		left:  &f,
+		Op:    "<",
+		right: col,
 	}
 }
 
 func (f Field[T]) LteCol(col FieldIfc) Cond {
 	return Cond{
-		left:       &f,
-		Op:         "<=",
-		rightField: col,
+		left:  &f,
+		Op:    "<=",
+		right: col,
 	}
+}
+
+type FieldGroup []FieldIfc
+
+func Group(field ...FieldIfc) FieldGroup {
+	return FieldGroup(field)
+}
+
+func (fg FieldGroup) InQuery(ExprIfc) Cond {
+	// TODO: 实现
+	return Cond{}
 }

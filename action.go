@@ -28,9 +28,9 @@ func (o *Action) UpdatePayload(payload PayloadIfc) *Stmt {
 	for i := range fields {
 		if fields[i].Dirty() {
 			stm.sets = append(stm.sets, Cond{
-				left:     fields[i],
-				Op:       "=",
-				rightVal: fields[i].Val(),
+				left:  fields[i],
+				Op:    "=",
+				right: anyVal{fields[i].Val()},
 			})
 		}
 	}
