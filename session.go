@@ -3,6 +3,8 @@ package orm
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"reflect"
 )
 
 type Session struct {
@@ -16,9 +18,30 @@ func (s *Session) Table(schema Schema) *Action {
 	}
 }
 
-func (s *Session) queryPayload(ctx context.Context, stmt *Stmt, payload PayloadIfc) error {
-	payload.Bind()
-	fields := payload.Fields()
+var payloadIfcType = reflect.TypeOf((*PayloadIfc)(nil)).Elem()
+
+func (s *Session) queryPayload(ctx context.Context, stmt *Stmt, payloadRef PayloadIfc, nestedPayloadRef ...any) error {
+	// TODO: 自动识别 payload 嵌套, 或者使用 nestPayloadRef 指定
+	fields := boundFields(payloadRef)
+	for _, item := range nestedPayloadRef {
+		itemV := reflect.ValueOf(item)
+		if itemV.Type().Kind() != reflect.Ptr {
+			return fmt.Errorf("payload must be pointer")
+		}
+		if itemV.Type().Implements(payloadIfcType) {
+			p := item.(PayloadIfc)
+			fields = append(fields, boundFields(p)...)
+		} else if itemV.Type().Elem().Kind() == reflect.Ptr &&
+			itemV.Type().Elem().Implements(payloadIfcType) {
+			if itemV.Elem().IsNil() && itemV.Elem().CanSet() {
+				newItem := reflect.New(itemV.Type().Elem().Elem())
+				itemV.Elem().Set(newItem)
+			}
+			itemDef := itemV.Elem().Interface()
+			p := itemDef.(PayloadIfc)
+			fields = append(fields, boundFields(p)...)
+		}
+	}
 	stmt.selectField = fields
 	expr, err := stmt.completeSelect()
 	if err != nil {
@@ -29,7 +52,71 @@ func (s *Session) queryPayload(ctx context.Context, stmt *Stmt, payload PayloadI
 	if err != nil {
 		return err
 	}
-	return ScanQueryFields(fields, rows)
+	values := make([]any, 0, len(fields))
+	for _, field := range fields {
+		values = append(values, field.RefVal())
+	}
+	for rows.Next() {
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+	}
+	for _, field := range fields {
+		field.setPreVal(field.Val())
+	}
+	return nil
+}
+
+func (s *Session) queryPayloadSlice(ctx context.Context, stmt *Stmt, payloadSliceRef any) error {
+	rv := reflect.ValueOf(payloadSliceRef)
+	if rv.Kind() != reflect.Ptr {
+		return fmt.Errorf("must be ptr, find :%T", rv.Interface())
+	}
+	rvElem := rv.Elem()
+	if rvElem.Kind() != reflect.Slice {
+		return fmt.Errorf("must be slice, find :%T", rvElem.Interface())
+	}
+	if rvElem.IsNil() {
+		rv.Set(reflect.MakeSlice(rv.Type(), 0, 0).Addr())
+	}
+	newPayload := reflect.New(rvElem.Type().Elem().Elem())
+	p, ok := newPayload.Interface().(PayloadIfc)
+	if !ok {
+		return fmt.Errorf("must be PayloadIfc, find :%T", newPayload.Interface())
+	}
+	p.Bind()
+	fields := p.Fields()
+	stmt.selectField = fields
+	expr, err := stmt.completeSelect()
+	if err != nil {
+		return err
+	}
+	sqlRaw, argsRaw := expr.Expr()
+	rows, err := s.db.QueryContext(ctx, sqlRaw, argsRaw...)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		rvPayload := reflect.New(rvElem.Type().Elem().Elem())
+		p, ok := rvPayload.Interface().(PayloadIfc)
+		if !ok {
+			return fmt.Errorf("must be PayloadIfc, find :%T", rvPayload.Interface())
+		}
+		p.Bind()
+		fields := p.Fields()
+		values := make([]any, 0, len(fields))
+		for _, field := range fields {
+			values = append(values, field.RefVal())
+		}
+		if err := rows.Scan(values...); err != nil {
+			return err
+		}
+		for _, field := range fields {
+			field.setPreVal(field.Val())
+		}
+		rvElem.Set(reflect.Append(rvElem, rvPayload))
+	}
+	return nil
 }
 
 func (s *Session) exec(ctx context.Context, stmt *Stmt) (sql.Result, error) {

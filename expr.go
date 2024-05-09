@@ -40,6 +40,8 @@ func (c *Cond) Expr() (expr string, args []any) {
 			args = append(args, v)
 		}
 		expr = fmt.Sprintf("%s IN (%s)", c.left.DBColName(true), strings.Join(val, ","))
+	case "IS NULL", "IS NOT NULL":
+		expr = c.left.DBColName(true) + " " + c.Op
 	default:
 		if c.rightField != nil {
 			expr = c.left.DBColName(true) + c.Op + c.rightField.DBColName(true)

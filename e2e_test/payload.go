@@ -33,13 +33,9 @@ type userWithTeamPayload struct {
 }
 
 func (p *userWithTeamPayload) Bind() {
-	p.PayloadBase.BindField(user.ID.WithRef(&p.ID))
+	// p.PayloadBase.BindField(user.ID.WithRef(&p.ID))
+	orm.BindField(&p.ID, user.ID, &p.PayloadBase)
 	p.PayloadBase.BindField(user.Name.WithRef(&p.Name))
-	p.PayloadBase.BindNest(&p.Team)
-	if p.TeamPtr == nil {
-		p.TeamPtr = &teamPayload{}
-	}
-	p.PayloadBase.BindNest(p.TeamPtr)
 }
 
 type userAndTeamPayload struct {

@@ -42,3 +42,7 @@ func NewClient(driverName, dataSourceName string) (*Client, error) {
 	}
 	return &Client{DB: NewDefaultExecutor(db), driverName: driverName}, nil
 }
+
+func NewFromDB(db *sql.DB) (*Client, error) {
+	return &Client{DB: NewDefaultExecutor(db)}, nil
+}

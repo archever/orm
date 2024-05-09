@@ -6,6 +6,8 @@ import (
 	"reflect"
 )
 
+var _ FieldIfc = (*Field[any])(nil)
+
 type FieldIfc interface {
 	ColName(withEscape bool) string
 	DBColName(withEscape bool) string
@@ -106,6 +108,22 @@ func (f Field[T]) EqCol(col Field[T]) Cond {
 	}
 }
 
+func (f Field[T]) NotEq(val T) Cond {
+	return Cond{
+		left:     &f,
+		Op:       "<>",
+		rightVal: val,
+	}
+}
+
+func (f Field[T]) NotEqCol(col Field[T]) Cond {
+	return Cond{
+		left:       &f,
+		Op:         "<>",
+		rightField: &col,
+	}
+}
+
 func (f Field[T]) In(val ...T) Cond {
 	anyList := []any{}
 	for _, v := range val {
@@ -115,5 +133,82 @@ func (f Field[T]) In(val ...T) Cond {
 		left:         &f,
 		Op:           "IN",
 		rightValList: anyList,
+	}
+}
+
+func (f Field[T]) IsNull(isNull bool) Cond {
+	if isNull {
+		return Cond{
+			left: &f,
+			Op:   "IS NULL",
+		}
+	}
+	return Cond{
+		left: &f,
+		Op:   "IS NOT NULL",
+	}
+}
+
+func (f Field[T]) Gt(val T) Cond {
+	return Cond{
+		left:     &f,
+		Op:       ">",
+		rightVal: val,
+	}
+}
+
+func (f Field[T]) Gte(val T) Cond {
+	return Cond{
+		left:     &f,
+		Op:       ">=",
+		rightVal: val,
+	}
+}
+
+func (f Field[T]) Lt(val T) Cond {
+	return Cond{
+		left:     &f,
+		Op:       "<",
+		rightVal: val,
+	}
+}
+
+func (f Field[T]) Lte(val T) Cond {
+	return Cond{
+		left:     &f,
+		Op:       "<=",
+		rightVal: val,
+	}
+}
+
+func (f Field[T]) GtCol(col FieldIfc) Cond {
+	return Cond{
+		left:       &f,
+		Op:         ">",
+		rightField: col,
+	}
+}
+
+func (f Field[T]) GteCol(col FieldIfc) Cond {
+	return Cond{
+		left:       &f,
+		Op:         ">=",
+		rightField: col,
+	}
+}
+
+func (f Field[T]) LtCol(col FieldIfc) Cond {
+	return Cond{
+		left:       &f,
+		Op:         "<",
+		rightField: col,
+	}
+}
+
+func (f Field[T]) LteCol(col FieldIfc) Cond {
+	return Cond{
+		left:       &f,
+		Op:         "<=",
+		rightField: col,
 	}
 }

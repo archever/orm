@@ -22,13 +22,16 @@ func (p *PayloadBase) BindField(f FieldIfc) {
 	p.binds = append(p.binds, f)
 }
 
-func (p *PayloadBase) BindNest(nest PayloadIfc) {
-	nest.Bind()
-	for _, f := range nest.Fields() {
-		p.BindField(f)
-	}
-}
-
 func (p *PayloadBase) Fields() []FieldIfc {
 	return p.binds
+}
+
+func BindField[T any](ref *T, f Field[T], base *PayloadBase) {
+	base.BindField(f.WithRef(ref))
+}
+
+func boundFields(p PayloadIfc) []FieldIfc {
+	p.Bind()
+	// TODO: 查找嵌套的结构中的 PayloadIfc
+	return p.Fields()
 }

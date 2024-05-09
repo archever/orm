@@ -174,10 +174,14 @@ func (a *Stmt) complete() (ExprIfc, error) {
 	return a.completeUpdate()
 }
 
-func (a *Stmt) TakePayload(ctx context.Context, payload PayloadIfc) error {
+func (a *Stmt) TakePayload(ctx context.Context, payload PayloadIfc, nestedPayload ...any) error {
 	a.limit = new(limit)
 	*a.limit = 1
-	return a.session.queryPayload(ctx, a, payload)
+	return a.session.queryPayload(ctx, a, payload, nestedPayload...)
+}
+
+func (a *Stmt) FindPayload(ctx context.Context, payloadsRef any) error {
+	return a.session.queryPayloadSlice(ctx, a, payloadsRef)
 }
 
 func (a *Stmt) Do(ctx context.Context) (rowCnt int64, err error) {

@@ -20,6 +20,10 @@ func (s *userSchema) TableName() string {
 	return "user"
 }
 
+func (s *userSchema) IDField() orm.FieldIfc {
+	return &s.ID
+}
+
 var team = &teamSchema{
 	ID:   orm.Field[int64]{Name: "id", Schema: &teamSchema{}, IsAutoIncrement: true},
 	Name: orm.Field[string]{Name: "name", Schema: &teamSchema{}},
@@ -32,4 +36,8 @@ type teamSchema struct {
 
 func (s *teamSchema) TableName() string {
 	return "team"
+}
+
+func (s *teamSchema) IDField() orm.FieldIfc {
+	return &s.ID
 }

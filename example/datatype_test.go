@@ -72,7 +72,7 @@ func TestSelect_AllType(t *testing.T) {
 		)
 
 	var dst allTypePayload
-	err := s.Table(allType).Select().Where(allType.ID.Eq(1)).TakePayload(ctx, &dst)
+	err := s.Table(user).Select().Where(allType.ID.Eq(1)).TakePayload(ctx, &dst)
 	assert.NoError(t, err)
 	t.Logf("%v", dst.ID)
 	t.Logf("%v", dst.Str)

@@ -2,18 +2,15 @@ package e2etest
 
 import (
 	"context"
-	"os"
 	"testing"
 
-	"github.com/archever/orm"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_initData(t *testing.T) {
 	ctx := context.Background()
-	cli, err := orm.NewClient("mysql", os.Getenv("MYSQL_DSN"))
-	assert.NoError(t, err)
+	cli := getClient()
 	team1 := teamPayload{
 		Name: "team1",
 	}
@@ -29,11 +26,10 @@ func Test_initData(t *testing.T) {
 
 func TestJoin(t *testing.T) {
 	ctx := context.Background()
-	cli, err := orm.NewClient("mysql", os.Getenv("MYSQL_DSN"))
-	assert.NoError(t, err)
+	cli := getClient()
 	var payload userPayload
 	// select user.* from user join team on user.team_id=team.id
-	err = cli.Table(user).Select().
+	err := cli.Table(user).Select().
 		Join(team, user.TeamID.EqCol(team.ID)).
 		Limit(1).
 		TakePayload(ctx, &payload)
@@ -43,11 +39,10 @@ func TestJoin(t *testing.T) {
 
 func TestJoinSelectAll(t *testing.T) {
 	ctx := context.Background()
-	cli, err := orm.NewClient("mysql", os.Getenv("MYSQL_DSN"))
-	assert.NoError(t, err)
+	cli := getClient()
 	var payload userAndTeamPayload
 	// select * from user join team on user.team_id=team.id
-	err = cli.Table(user).Select().
+	err := cli.Table(user).Select().
 		Join(team, user.TeamID.EqCol(team.ID)).
 		Limit(1).
 		TakePayload(ctx, &payload)
@@ -57,16 +52,16 @@ func TestJoinSelectAll(t *testing.T) {
 
 func TestJoinSelectNest(t *testing.T) {
 	ctx := context.Background()
-	cli, err := orm.NewClient("mysql", os.Getenv("MYSQL_DSN"))
-	assert.NoError(t, err)
+	cli := getClient()
 	var payload userWithTeamPayload
 	// select * from user join team on user.team_id=team.id
-	err = cli.Table(user).Select().
+	err := cli.Table(user).Select().
 		Join(team, user.TeamID.EqCol(team.ID)).
 		Limit(1).
+		// TakePayload(ctx, &payload, &payload.TeamPtr, &payload.Team)
 		TakePayload(ctx, &payload)
 	assert.NoError(t, err)
 	t.Logf("%#v", payload)
-	t.Logf("%#v", payload.Team)
+	// t.Logf("%#v", payload.Team)
 	t.Logf("%#v", *payload.TeamPtr)
 }

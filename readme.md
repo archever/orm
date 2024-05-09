@@ -11,4 +11,3 @@
     - [ ] 支持同一个表的字段被多次bind的场景
 - 完善 payload
     - [ ] payload 自动更新
-    - [ ] 将 payload snapshot 放在 context 中
