@@ -22,7 +22,7 @@ var payloadIfcType = reflect.TypeOf((*PayloadIfc)(nil)).Elem()
 
 func (s *Session) queryPayload(ctx context.Context, stmt *Stmt, payloadRef PayloadIfc, nestedPayloadRef ...any) error {
 	// TODO: 自动识别 payload 嵌套, 或者使用 nestPayloadRef 指定
-	fields := boundFields(payloadRef)
+	bindFields := boundFields(payloadRef)
 	for _, item := range nestedPayloadRef {
 		itemV := reflect.ValueOf(item)
 		if itemV.Type().Kind() != reflect.Ptr {
@@ -30,7 +30,7 @@ func (s *Session) queryPayload(ctx context.Context, stmt *Stmt, payloadRef Paylo
 		}
 		if itemV.Type().Implements(payloadIfcType) {
 			p := item.(PayloadIfc)
-			fields = append(fields, boundFields(p)...)
+			bindFields = append(bindFields, boundFields(p)...)
 		} else if itemV.Type().Elem().Kind() == reflect.Ptr &&
 			itemV.Type().Elem().Implements(payloadIfcType) {
 			if itemV.Elem().IsNil() && itemV.Elem().CanSet() {
@@ -39,8 +39,12 @@ func (s *Session) queryPayload(ctx context.Context, stmt *Stmt, payloadRef Paylo
 			}
 			itemDef := itemV.Elem().Interface()
 			p := itemDef.(PayloadIfc)
-			fields = append(fields, boundFields(p)...)
+			bindFields = append(bindFields, boundFields(p)...)
 		}
+	}
+	fields := []FieldIfc{}
+	for _, field := range bindFields {
+		fields = append(fields, field.field)
 	}
 	stmt.selectField = fields
 	expr, err := stmt.completeSelect()
@@ -52,8 +56,8 @@ func (s *Session) queryPayload(ctx context.Context, stmt *Stmt, payloadRef Paylo
 	if err != nil {
 		return err
 	}
-	values := make([]any, 0, len(fields))
-	for _, field := range fields {
+	values := make([]any, 0, len(bindFields))
+	for _, field := range bindFields {
 		values = append(values, field.RefVal())
 	}
 	for rows.Next() {
@@ -61,7 +65,7 @@ func (s *Session) queryPayload(ctx context.Context, stmt *Stmt, payloadRef Paylo
 			return err
 		}
 	}
-	for _, field := range fields {
+	for _, field := range bindFields {
 		field.setPreVal(field.Val())
 	}
 	return nil
@@ -84,8 +88,11 @@ func (s *Session) queryPayloadSlice(ctx context.Context, stmt *Stmt, payloadSlic
 	if !ok {
 		return fmt.Errorf("must be PayloadIfc, find :%T", newPayload.Interface())
 	}
-	p.Bind()
-	fields := p.Fields()
+	bindFields := boundFields(p)
+	fields := []FieldIfc{}
+	for _, field := range bindFields {
+		fields = append(fields, field.field)
+	}
 	stmt.selectField = fields
 	expr, err := stmt.completeSelect()
 	if err != nil {
@@ -102,16 +109,15 @@ func (s *Session) queryPayloadSlice(ctx context.Context, stmt *Stmt, payloadSlic
 		if !ok {
 			return fmt.Errorf("must be PayloadIfc, find :%T", rvPayload.Interface())
 		}
-		p.Bind()
-		fields := p.Fields()
-		values := make([]any, 0, len(fields))
-		for _, field := range fields {
+		bindFields := boundFields(p)
+		values := make([]any, 0, len(bindFields))
+		for _, field := range bindFields {
 			values = append(values, field.RefVal())
 		}
 		if err := rows.Scan(values...); err != nil {
 			return err
 		}
-		for _, field := range fields {
+		for _, field := range bindFields {
 			field.setPreVal(field.Val())
 		}
 		rvElem.Set(reflect.Append(rvElem, rvPayload))

@@ -23,14 +23,14 @@ func (o *Action) UpdatePayload(payload PayloadIfc) *Stmt {
 		schema:  o.schema,
 	}
 	stm.completeFn = stm.completeUpdate
-	payload.Bind()
-	fields := payload.Fields()
-	for i := range fields {
-		if fields[i].Dirty() {
+	bindFields := boundFields(payload)
+	for i := range bindFields {
+		item := bindFields[i]
+		if item.Dirty() {
 			stm.sets = append(stm.sets, Cond{
-				left:  fields[i],
+				left:  item.field,
 				Op:    "=",
-				right: anyVal{fields[i].Val()},
+				right: anyVal{item.Val()},
 			})
 		}
 	}
@@ -56,36 +56,40 @@ func (o *Action) Delete() *Stmt {
 	return stm
 }
 
-func (o *Action) InsertPayload(row ...PayloadIfc) *Stmt {
-	if len(row) == 0 {
+func (o *Action) InsertPayload(rows ...PayloadIfc) *Stmt {
+	if len(rows) == 0 {
 		return &Stmt{err: errors.New("no payload")}
 	}
-	values := [][]FieldIfc{}
-	autoIncrementFields := []FieldIfc{}
-	for i := range row {
-		row[i].Bind()
-		fields := row[i].Fields()
-		ignoredFields := []FieldIfc{}
-		for j := range fields {
-			if fields[j].AutoIncrement() {
-				autoIncrementFields = append(autoIncrementFields, fields[j])
+	values := [][]fieldBind{}
+	autoIncrementFields := []fieldBind{}
+	for i := range rows {
+		row := rows[i]
+		bindFields := boundFields(row)
+		notIgnoredFields := []fieldBind{}
+		for j := range bindFields {
+			if bindFields[j].field.IsAutoIncrement() {
+				autoIncrementFields = append(autoIncrementFields, bindFields[j])
 				continue
 			}
-			ignoredFields = append(ignoredFields, fields[j])
+			notIgnoredFields = append(notIgnoredFields, bindFields[j])
 		}
-		values = append(values, ignoredFields)
+		values = append(values, notIgnoredFields)
+	}
+	fields := []FieldIfc{}
+	for i := range values[0] {
+		fields = append(fields, values[0][i].field)
 	}
 	stm := &Stmt{
 		session:     o.session,
 		schema:      o.schema,
-		selectField: values[0],
+		selectField: fields,
 		values:      values,
 	}
 	stm.completeFn = stm.completeInsert
 	stm.afterExecFn = func(row, id int64) {
 		for i := range autoIncrementFields {
 			f := autoIncrementFields[i]
-			f.set(id + int64(i))
+			f.Set(id + int64(i))
 		}
 	}
 	return stm

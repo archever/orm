@@ -5,7 +5,7 @@ import (
 )
 
 var user = &userSchema{
-	ID:     orm.Field[int64]{Name: "id", Schema: &userSchema{}, IsAutoIncrement: true},
+	ID:     orm.Field[int64]{Name: "id", Schema: &userSchema{}, AutoIncrement: true},
 	Name:   orm.Field[string]{Name: "name", Schema: &userSchema{}},
 	TeamID: orm.Field[int64]{Name: "team_id", Schema: &userSchema{}},
 }
@@ -25,7 +25,7 @@ func (s *userSchema) IDField() orm.FieldIfc {
 }
 
 var team = &teamSchema{
-	ID:   orm.Field[int64]{Name: "id", Schema: &teamSchema{}, IsAutoIncrement: true},
+	ID:   orm.Field[int64]{Name: "id", Schema: &teamSchema{}, AutoIncrement: true},
 	Name: orm.Field[string]{Name: "name", Schema: &teamSchema{}},
 }
 

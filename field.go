@@ -2,8 +2,6 @@ package orm
 
 import (
 	"fmt"
-	"log"
-	"reflect"
 )
 
 var _ FieldIfc = (*Field[any])(nil)
@@ -11,36 +9,39 @@ var _ FieldIfc = (*Field[any])(nil)
 type FieldIfc interface {
 	ColName(withEscape bool) string
 	DBColName(withEscape bool) string
-	RefVal() any
-	Val() any
-	AutoIncrement() bool
-	Dirty() bool
+	IsAutoIncrement() bool
 	ExprIfc
 
-	set(any)
-	WithRef(val any) FieldIfc
-	setPreVal(val any)
+	key() string
 }
 
 type Field[T any] struct {
-	Name            string
-	Schema          Schema
-	IsAutoIncrement bool
-	// 是否被缓存值
-	scanned bool
-	preVal  T
-	refVal  *T
+	Name          string
+	Schema        Schema
+	AutoIncrement bool
 }
 
-func (f *Field[T]) AutoIncrement() bool {
-	return f.IsAutoIncrement
+func NewField[T any](name string, schema Schema) *Field[T] {
+	return &Field[T]{
+		Name:          name,
+		Schema:        schema,
+		AutoIncrement: false,
+	}
 }
 
-func (f *Field[T]) set(v any) {
-	*f.refVal = v.(T)
+func (f *Field[T]) SetAutoIncrement(b bool) {
+	f.AutoIncrement = b
 }
 
-func (f *Field[T]) ColName(withEscape bool) string {
+func (f Field[T]) IsAutoIncrement() bool {
+	return f.AutoIncrement
+}
+
+func (f Field[T]) key() string {
+	return fmt.Sprintf("%s.%s", f.Schema.TableName(), f.Name)
+}
+
+func (f Field[T]) ColName(withEscape bool) string {
 	wrapFn := func(s string) string {
 		return s
 	}
@@ -50,7 +51,7 @@ func (f *Field[T]) ColName(withEscape bool) string {
 	return wrapFn(f.Name)
 }
 
-func (f *Field[T]) DBColName(withEscape bool) string {
+func (f Field[T]) DBColName(withEscape bool) string {
 	wrapFn := func(s string) string {
 		return s
 	}
@@ -61,36 +62,6 @@ func (f *Field[T]) DBColName(withEscape bool) string {
 		wrapFn(f.Schema.TableName()),
 		wrapFn(f.Name),
 	)
-}
-
-func (f *Field[T]) WithRef(ref any) FieldIfc {
-	new := &Field[T]{}
-	*new = *f
-	new.refVal = ref.(*T)
-	return new
-}
-
-func (f *Field[T]) RefVal() any {
-	return f.refVal
-}
-
-func (f *Field[T]) Val() any {
-	return *f.refVal
-}
-
-func (f *Field[T]) setPreVal(val any) {
-	f.scanned = true
-	// t := val.(*T)
-	f.preVal = val.(T)
-}
-
-func (f *Field[T]) Dirty() bool {
-	pre, cur := any(f.preVal), any(*f.refVal)
-	log.Printf("scanned: %v, preVal: %v, curVal: %v", f.scanned, pre, cur)
-	if f.scanned {
-		return !reflect.DeepEqual(pre, cur)
-	}
-	return true
 }
 
 func (f Field[T]) Expr() (string, []any) {

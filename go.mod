@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
+	github.com/elliotchance/orderedmap/v2 v2.2.0
 	github.com/go-sql-driver/mysql v1.4.1
 	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.7.1

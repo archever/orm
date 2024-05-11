@@ -40,12 +40,12 @@ type allTypePayload struct {
 }
 
 func (t *allTypePayload) Bind() {
-	t.PayloadBase.BindField(allType.ID.WithRef(&t.ID))
-	t.PayloadBase.BindField(allType.Str.WithRef(&t.Str))
-	t.PayloadBase.BindField(allType.NilStr.WithRef(&t.NilStr))
-	t.PayloadBase.BindField(allType.Time.WithRef(&t.Time))
-	t.PayloadBase.BindField(allType.NilTime.WithRef(&t.NilTime))
-	t.PayloadBase.BindField(allType.Json.WithRef(&t.Json))
+	t.PayloadBase.BindField(&t.ID, allType.ID)
+	t.PayloadBase.BindField(&t.Str, allType.Str)
+	t.PayloadBase.BindField(&t.NilStr, allType.NilStr)
+	t.PayloadBase.BindField(&t.Time, allType.Time)
+	t.PayloadBase.BindField(&t.NilTime, allType.NilTime)
+	t.PayloadBase.BindField(&t.Json, allType.Json)
 }
 
 var allType = &allTypeSchema{

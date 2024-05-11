@@ -9,8 +9,8 @@ type userPayload struct {
 }
 
 func (p *userPayload) Bind() {
-	p.PayloadBase.BindField(user.ID.WithRef(&p.ID))
-	p.PayloadBase.BindField(user.Name.WithRef(&p.Name))
+	p.PayloadBase.BindField(&p.ID, user.ID)
+	p.PayloadBase.BindField(&p.Name, user.Name)
 }
 
 type teamPayload struct {
@@ -20,8 +20,8 @@ type teamPayload struct {
 }
 
 func (p *teamPayload) Bind() {
-	p.PayloadBase.BindField(team.ID.WithRef(&p.ID))
-	p.PayloadBase.BindField(team.Name.WithRef(&p.Name))
+	p.PayloadBase.BindField(&p.ID, team.ID)
+	p.PayloadBase.BindField(&p.Name, team.Name)
 }
 
 type userWithTeamPayload struct {
@@ -32,8 +32,8 @@ type userWithTeamPayload struct {
 }
 
 func (p *userWithTeamPayload) Bind() {
-	p.PayloadBase.BindField(user.ID.WithRef(&p.ID))
-	p.PayloadBase.BindField(user.Name.WithRef(&p.Name))
+	p.PayloadBase.BindField(&p.ID, user.ID)
+	p.PayloadBase.BindField(&p.Name, user.Name)
 	if p.Team == nil {
 		p.Team = &teamPayload{}
 	}

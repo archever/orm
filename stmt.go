@@ -3,13 +3,14 @@ package orm
 import "context"
 
 type Stmt struct {
-	err        error
-	session    *Session
-	schema     Schema
-	completeFn func() (ExprIfc, error)
+	err           error
+	session       *Session
+	schema        Schema
+	completeFn    func() (ExprIfc, error)
+	withTableName bool
 
 	joins       []joinExpr
-	values      [][]FieldIfc
+	values      [][]fieldBind
 	conds       []Cond
 	orderBy     []Order
 	groupBy     []FieldIfc
@@ -88,8 +89,9 @@ func (a *Stmt) completeSelect() (ExprIfc, error) {
 		schema: a.schema,
 	}
 	if len(a.joins) > 0 {
-		action.withTableName = true
+		a.withTableName = true
 	}
+	action.withTableName = a.withTableName
 	exprs := []ExprIfc{action}
 	for _, join := range a.joins {
 		exprs = append(exprs, &join)
