@@ -10,7 +10,7 @@ type Stmt struct {
 	withTableName bool
 
 	joins       []joinExpr
-	values      [][]fieldBind
+	values      [][]*fieldBind
 	conds       []Cond
 	orderBy     []Order
 	groupBy     []FieldIfc

@@ -58,17 +58,17 @@ func (s *Session) queryPayload(ctx context.Context, stmt *Stmt, payloadRef Paylo
 	if err != nil {
 		return err
 	}
-	values := make([]any, 0, len(bindFields))
-	for _, field := range bindFields {
-		values = append(values, field.RefVal())
-	}
 	for rows.Next() {
+		values := make([]any, 0, len(bindFields))
+		for _, field := range bindFields {
+			values = append(values, field.RefVal())
+		}
 		if err := rows.Scan(values...); err != nil {
 			return err
 		}
-	}
-	for _, field := range bindFields {
-		field.setPreVal(field.Val())
+		for _, field := range bindFields {
+			field.setPreVal(field.Val())
+		}
 	}
 	return nil
 }

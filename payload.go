@@ -27,27 +27,29 @@ type fieldBind struct {
 
 type PayloadIfc interface {
 	Bind()
-	BoundFields() []fieldBind
+	BoundFields() []*fieldBind
 	Fields() []FieldIfc
 }
 
 type PayloadBase struct {
-	binds *orderedmap.OrderedMap[string, fieldBind]
+	binds *orderedmap.OrderedMap[string, *fieldBind]
 }
 
 func (p *PayloadBase) BindField(ref any, f FieldIfc) {
 	key := f.key()
 	if p.binds == nil {
-		p.binds = orderedmap.NewOrderedMap[string, fieldBind]()
+		p.binds = orderedmap.NewOrderedMap[string, *fieldBind]()
 	}
-	p.binds.Set(key, fieldBind{
-		ref:   ref,
-		field: f,
-	})
+	if _, ok := p.binds.Get(key); !ok {
+		p.binds.Set(key, &fieldBind{
+			ref:   ref,
+			field: f,
+		})
+	}
 }
 
-func (p *PayloadBase) BoundFields() []fieldBind {
-	dst := []fieldBind{}
+func (p *PayloadBase) BoundFields() []*fieldBind {
+	dst := []*fieldBind{}
 	for _, key := range p.binds.Keys() {
 		value, _ := p.binds.Get(key)
 		dst = append(dst, value)
@@ -72,7 +74,7 @@ func BindFieldIfc(ref any, f FieldIfc, base *PayloadBase) {
 	base.BindField(ref, f)
 }
 
-func boundFields(p PayloadIfc) []fieldBind {
+func boundFields(p PayloadIfc) []*fieldBind {
 	p.Bind()
 	// TODO: 查找嵌套的结构中的 PayloadIfc
 	return p.BoundFields()

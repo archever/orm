@@ -261,7 +261,7 @@ func (e *deleteExpr) Expr() (expr string, args []any) {
 }
 
 type insertExpr struct {
-	vales  [][]fieldBind
+	vales  [][]*fieldBind
 	fields []FieldIfc
 	schema Schema
 }

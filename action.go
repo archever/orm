@@ -60,12 +60,12 @@ func (o *Action) InsertPayload(rows ...PayloadIfc) *Stmt {
 	if len(rows) == 0 {
 		return &Stmt{err: errors.New("no payload")}
 	}
-	values := [][]fieldBind{}
-	autoIncrementFields := []fieldBind{}
+	values := [][]*fieldBind{}
+	autoIncrementFields := []*fieldBind{}
 	for i := range rows {
 		row := rows[i]
 		bindFields := boundFields(row)
-		notIgnoredFields := []fieldBind{}
+		notIgnoredFields := []*fieldBind{}
 		for j := range bindFields {
 			if bindFields[j].field.IsAutoIncrement() {
 				autoIncrementFields = append(autoIncrementFields, bindFields[j])
