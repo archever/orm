@@ -54,7 +54,7 @@ func Test_Select_Where(t *testing.T) {
 	}
 	{
 		m.MockDB.ExpectQuery("SELECT `id`, `name` FROM `user` WHERE (`user`.`name` > ? OR (`user`.`name` < ? AND `user`.`name` IS NULL)) LIMIT ?").
-			WithArgs(10, "gt", "gte", "lt", "lte", "nte", "ina", "inb", "nIna", "nInb", 1).
+			WithArgs("gt", "lt", 1).
 			WillReturnRows(
 				sqlmock.NewRows([]string{"id", "name"}).AddRow(10, "archever"),
 			)
@@ -132,7 +132,7 @@ func Test_Select_Join(t *testing.T) {
 	cli := getClient(m)
 	{
 		m.MockDB.ExpectQuery("SELECT `user`.`id`, `user`.`name` FROM `user` JOIN `team` ON `user`.`id` = `team`.`id`").
-			WithArgs(10).
+			WithArgs().
 			WillReturnRows(
 				sqlmock.NewRows([]string{"id", "name"}).AddRow(10, "archever"),
 			)
@@ -144,7 +144,7 @@ func Test_Select_Join(t *testing.T) {
 	}
 	{
 		m.MockDB.ExpectQuery("SELECT `user`.`id`, `user`.`name` FROM `user` LEFT JOIN `team` ON `user`.`id` = `team`.`id`").
-			WithArgs(10, 1).
+			WithArgs().
 			WillReturnRows(
 				sqlmock.NewRows([]string{"id", "name"}).AddRow(10, "archever"),
 			)
@@ -160,16 +160,30 @@ func Test_Select_SubQuery(t *testing.T) {
 	ctx := context.Background()
 	m := (&mockInc{}).MustBuild()
 	cli := getClient(m)
-
-	m.MockDB.ExpectQuery("SELECT `id`, `name` FROM `user` WHERE `user`.`team_id` IN (SELECT `id` FROM `team` WHERE `team`.`id` = ?)").
-		WithArgs(10).
-		WillReturnRows(
-			sqlmock.NewRows([]string{"id", "name"}).AddRow(10, "archever"),
-		)
-	var payload []*userPayload
-	subQuery := cli.Table(team).Select(team.ID).Where(team.ID.Eq(10)).SubQuery()
-	err := cli.Table(user).Select().
-		Where(user.TeamID.InQuery(subQuery)).
-		FindPayload(ctx, &payload)
-	assert.NoError(t, err)
+	{
+		m.MockDB.ExpectQuery("SELECT `id`, `name` FROM `user` WHERE `user`.`team_id` IN (SELECT `id` FROM `team` WHERE `team`.`id` = ?)").
+			WithArgs(10).
+			WillReturnRows(
+				sqlmock.NewRows([]string{"id", "name"}).AddRow(10, "archever"),
+			)
+		var payload []*userPayload
+		subQuery := cli.Table(team).Select(team.ID).Where(team.ID.Eq(10)).SubQuery()
+		err := cli.Table(user).Select().
+			Where(user.TeamID.InQuery(subQuery)).
+			FindPayload(ctx, &payload)
+		assert.NoError(t, err)
+	}
+	{
+		m.MockDB.ExpectQuery("SELECT `id`, `name` FROM `user` WHERE (`team`.`id`, `team`.`name`) IN (SELECT `id`, `name` FROM `team` WHERE `team`.`id` = ?)").
+			WithArgs(10).
+			WillReturnRows(
+				sqlmock.NewRows([]string{"id", "name"}).AddRow(10, "archever"),
+			)
+		var payload []*userPayload
+		subQuery := cli.Table(team).Select(team.ID, team.Name).Where(team.ID.Eq(10)).SubQuery()
+		err := cli.Table(user).Select().
+			Where(orm.Group(team.ID, team.Name).InQuery(subQuery)).
+			FindPayload(ctx, &payload)
+		assert.NoError(t, err)
+	}
 }

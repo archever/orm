@@ -22,24 +22,22 @@ var _ ExprIfc = (*updateExpr)(nil)
 var _ ExprIfc = (*deleteExpr)(nil)
 var _ ExprIfc = (*insertExpr)(nil)
 var _ ExprIfc = (*ExprSlice)(nil)
+var _ ExprIfc = (*anyVal)(nil)
+var _ ExprIfc = (*anyValList)(nil)
+var _ ExprIfc = (*joinExpr)(nil)
+var _ ExprIfc = (*brackets)(nil)
+var _ ExprIfc = (*fields)(nil)
 
 type Cond struct {
 	left  ExprIfc
 	right ExprIfc
 	Op    string
-
-	// left         FieldIfc
-	// rightVal     any
-	// rightValList []any
-	// rightField   FieldIfc
-	// rightExpr    ExprIfc
-	// Op           string
 }
 
 func (c *Cond) Expr() (expr string, args []any) {
 	switch c.Op {
 	case "":
-		return c.right.Expr()
+		return c.left.Expr()
 	case "IS NULL", "IS NOT NULL":
 		leftE, leftA := c.left.Expr()
 		expr = leftE + " " + c.Op
@@ -74,7 +72,7 @@ func (a *groupExpr) Expr() (expr string, args []any) {
 
 func And(cond ...Cond) Cond {
 	return Cond{
-		right: &groupExpr{
+		left: &groupExpr{
 			op:    "AND",
 			conds: cond,
 		},
@@ -83,7 +81,7 @@ func And(cond ...Cond) Cond {
 
 func Or(cond ...Cond) Cond {
 	return Cond{
-		right: &groupExpr{
+		left: &groupExpr{
 			op:    "OR",
 			conds: cond,
 		},
@@ -157,6 +155,24 @@ func (a selectExpr) Expr() (expr string, args []any) {
 		}
 	}
 	expr = fmt.Sprintf("SELECT %s FROM %s", strings.Join(fields, ", "), FieldWrapper(a.schema.TableName()))
+	return
+}
+
+type fields struct {
+	fields        []FieldIfc
+	withTableName bool
+}
+
+func (a fields) Expr() (expr string, args []any) {
+	fields := []string{}
+	for _, field := range a.fields {
+		if a.withTableName {
+			fields = append(fields, field.DBColName(true))
+		} else {
+			fields = append(fields, field.ColName(true))
+		}
+	}
+	expr = strings.Join(fields, ", ")
 	return
 }
 

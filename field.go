@@ -245,7 +245,30 @@ func Group(field ...FieldIfc) FieldGroup {
 	return FieldGroup(field)
 }
 
-func (fg FieldGroup) InQuery(ExprIfc) Cond {
-	// TODO: 实现
-	return Cond{}
+func (fg FieldGroup) InQuery(q ExprIfc) Cond {
+	left := brackets{
+		ExprIfc: fields{
+			fields:        fg,
+			withTableName: true,
+		},
+	}
+	return Cond{
+		left:  left,
+		Op:    "IN",
+		right: brackets{q},
+	}
+}
+
+func (fg FieldGroup) NotInQuery(q ExprIfc) Cond {
+	left := brackets{
+		ExprIfc: fields{
+			fields:        fg,
+			withTableName: true,
+		},
+	}
+	return Cond{
+		left:  left,
+		Op:    "NOT IN",
+		right: brackets{q},
+	}
 }

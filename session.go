@@ -40,6 +40,8 @@ func (s *Session) queryPayload(ctx context.Context, stmt *Stmt, payloadRef Paylo
 			itemDef := itemV.Elem().Interface()
 			p := itemDef.(PayloadIfc)
 			bindFields = append(bindFields, boundFields(p)...)
+		} else {
+			return fmt.Errorf("nestedPayloadRef must be PayloadIfc, find :%T", item)
 		}
 	}
 	fields := []FieldIfc{}
