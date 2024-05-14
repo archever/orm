@@ -1,0 +1,54 @@
+package tests
+
+import (
+	"github.com/archever/orm"
+)
+
+var user = &userSchema{
+	ID:     orm.Field[int64]{Name: "id", Schema: &userSchema{}, AutoIncrement: true},
+	Name:   orm.Field[string]{Name: "name", Schema: &userSchema{}},
+	TeamID: orm.Field[int64]{Name: "team_id", Schema: &userSchema{}},
+}
+
+type userSchema struct {
+	ID     orm.Field[int64]
+	Name   orm.Field[string]
+	TeamID orm.Field[int64]
+}
+
+func (s *userSchema) TableName() string {
+	return "user"
+}
+
+func (s *userSchema) IDField() orm.FieldIfc {
+	return s.ID
+}
+
+var team = &teamSchema{
+	ID:   orm.Field[int64]{Name: "id", Schema: &teamSchema{}, AutoIncrement: true},
+	Name: orm.Field[string]{Name: "name", Schema: &teamSchema{}},
+}
+
+type teamSchema struct {
+	ID   orm.Field[int64]
+	Name orm.Field[string]
+}
+
+func (s *teamSchema) TableName() string {
+	return "team"
+}
+
+func (s *teamSchema) IDField() orm.FieldIfc {
+	return s.ID
+}
+
+type userPayload struct {
+	orm.PayloadBase
+	ID   int64
+	Name string
+}
+
+func (p *userPayload) Bind() {
+	p.PayloadBase.BindField(&p.ID, user.ID)
+	p.PayloadBase.BindField(&p.Name, user.Name)
+}

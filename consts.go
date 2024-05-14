@@ -10,7 +10,7 @@ import (
 
 var (
 	_, b, _, _ = runtime.Caller(0)
-	BaseDir    = filepath.Clean(fmt.Sprintf("%s", filepath.Dir(b)))
+	BaseDir    = filepath.Clean(fmt.Sprintf("%s", filepath.Dir(b))) // nolint
 )
 
 func init() {

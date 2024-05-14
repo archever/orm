@@ -83,6 +83,33 @@ func (a *Stmt) Join(s Schema, on ...Cond) *Stmt {
 	return a
 }
 
+func (a *Stmt) LeftJoin(s Schema, on ...Cond) *Stmt {
+	a.joins = append(a.joins, joinExpr{
+		tp:     "LEFT",
+		schema: s,
+		on:     on,
+	})
+	return a
+}
+
+func (a *Stmt) OuterJoin(s Schema, on ...Cond) *Stmt {
+	a.joins = append(a.joins, joinExpr{
+		tp:     "OUTER",
+		schema: s,
+		on:     on,
+	})
+	return a
+}
+
+func (a *Stmt) RightJoin(s Schema, on ...Cond) *Stmt {
+	a.joins = append(a.joins, joinExpr{
+		tp:     "RIGHT",
+		schema: s,
+		on:     on,
+	})
+	return a
+}
+
 func (a *Stmt) completeSelect() (ExprIfc, error) {
 	action := &selectExpr{
 		fields: a.selectField,

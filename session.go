@@ -80,9 +80,6 @@ func (s *Session) queryPayloadSlice(ctx context.Context, stmt *Stmt, payloadSlic
 	if rvElem.Kind() != reflect.Slice {
 		return fmt.Errorf("must be slice, find :%T", rvElem.Interface())
 	}
-	if rvElem.IsNil() {
-		rv.Set(reflect.MakeSlice(rv.Type(), 0, 0).Addr())
-	}
 	newPayload := reflect.New(rvElem.Type().Elem().Elem())
 	p, ok := newPayload.Interface().(PayloadIfc)
 	if !ok {

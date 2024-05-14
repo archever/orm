@@ -19,15 +19,15 @@ import (
 type fieldBind struct {
 	field FieldIfc
 	// 是否被缓存值
-	scanned  bool
-	preVal   any
-	ref      any
-	extraRef []any
+	scanned bool
+	preVal  any
+	ref     any
+	// extraRef []any
 }
 
 type PayloadIfc interface {
 	Bind()
-	BindFields() []fieldBind
+	BoundFields() []fieldBind
 	Fields() []FieldIfc
 }
 
@@ -46,7 +46,7 @@ func (p *PayloadBase) BindField(ref any, f FieldIfc) {
 	})
 }
 
-func (p *PayloadBase) BindFields() []fieldBind {
+func (p *PayloadBase) BoundFields() []fieldBind {
 	dst := []fieldBind{}
 	for _, key := range p.binds.Keys() {
 		value, _ := p.binds.Get(key)
@@ -75,7 +75,7 @@ func BindFieldIfc(ref any, f FieldIfc, base *PayloadBase) {
 func boundFields(p PayloadIfc) []fieldBind {
 	p.Bind()
 	// TODO: 查找嵌套的结构中的 PayloadIfc
-	return p.BindFields()
+	return p.BoundFields()
 }
 
 func (f *fieldBind) RefVal() any {

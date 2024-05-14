@@ -120,10 +120,30 @@ func (f Field[T]) In(val ...T) Cond {
 	}
 }
 
+func (f Field[T]) NotIn(val ...T) Cond {
+	anyList := []any{}
+	for _, v := range val {
+		anyList = append(anyList, v)
+	}
+	return Cond{
+		left:  &f,
+		Op:    "NOT IN",
+		right: brackets{anyValList(anyList)},
+	}
+}
+
 func (f Field[T]) InQuery(q ExprIfc) Cond {
 	return Cond{
 		left:  &f,
 		Op:    "IN",
+		right: brackets{q},
+	}
+}
+
+func (f Field[T]) NotInQuery(q ExprIfc) Cond {
+	return Cond{
+		left:  &f,
+		Op:    "NOT IN",
 		right: brackets{q},
 	}
 }
@@ -202,6 +222,20 @@ func (f Field[T]) LteCol(col FieldIfc) Cond {
 		left:  &f,
 		Op:    "<=",
 		right: col,
+	}
+}
+
+func (f Field[T]) Desc(desc bool) Order {
+	return Order{
+		Field: &f,
+		Desc:  desc,
+	}
+}
+
+func (f Field[T]) Asc() Order {
+	return Order{
+		Field: &f,
+		Desc:  false,
 	}
 }
 

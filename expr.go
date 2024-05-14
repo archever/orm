@@ -38,6 +38,8 @@ type Cond struct {
 
 func (c *Cond) Expr() (expr string, args []any) {
 	switch c.Op {
+	case "":
+		return c.right.Expr()
 	case "IS NULL", "IS NOT NULL":
 		leftE, leftA := c.left.Expr()
 		expr = leftE + " " + c.Op
@@ -70,17 +72,21 @@ func (a *groupExpr) Expr() (expr string, args []any) {
 	return
 }
 
-func And(cond ...Cond) ExprIfc {
-	return &groupExpr{
-		op:    "AND",
-		conds: cond,
+func And(cond ...Cond) Cond {
+	return Cond{
+		right: &groupExpr{
+			op:    "AND",
+			conds: cond,
+		},
 	}
 }
 
-func Or(cond ...Cond) ExprIfc {
-	return &groupExpr{
-		op:    "OR",
-		conds: cond,
+func Or(cond ...Cond) Cond {
+	return Cond{
+		right: &groupExpr{
+			op:    "OR",
+			conds: cond,
+		},
 	}
 }
 
@@ -200,7 +206,10 @@ func (a where) Expr() (expr string, args []any) {
 	}
 	var cond ExprIfc = &a[0]
 	if len(a) > 1 {
-		cond = And(a...)
+		cond = &groupExpr{
+			op:    "AND",
+			conds: a,
+		}
 	}
 	e, ar := cond.Expr()
 	expr = "WHERE " + e
@@ -263,12 +272,17 @@ func (e *insertExpr) Expr() (expr string, args []any) {
 }
 
 type joinExpr struct {
+	tp     string
 	on     []Cond
 	schema Schema
 }
 
 func (a *joinExpr) Expr() (expr string, args []any) {
-	expr = fmt.Sprintf("JOIN %s ON", FieldWrapper(a.schema.TableName()))
+	joinStr := "JOIN"
+	if a.tp != "" {
+		joinStr = fmt.Sprintf("%s %s", a.tp, joinStr)
+	}
+	expr = fmt.Sprintf("%s %s ON", joinStr, FieldWrapper(a.schema.TableName()))
 	for _, cond := range a.on {
 		e, a := cond.Expr()
 		expr += " " + e
